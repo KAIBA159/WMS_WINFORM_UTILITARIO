@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "T2Z9L+gle90=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\SYS03\\.nuget\\packages\\exceldatareader\\3.9.0\\exceldatareader.3.9.0.nupkg.sha512",
+    "C:\\Users\\SYS03\\.nuget\\packages\\exceldatareader.dataset\\3.9.0\\exceldatareader.dataset.3.9.0.nupkg.sha512",
+    "C:\\Users\\SYS03\\.nuget\\packages\\system.data.odbc\\10.0.11\\system.data.odbc.10.0.11.nupkg.sha512"
+  ],
+  "logs": []
+}

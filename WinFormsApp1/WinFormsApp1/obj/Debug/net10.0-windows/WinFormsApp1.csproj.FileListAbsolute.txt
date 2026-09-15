@@ -1,0 +1,69 @@
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.exe
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.deps.json
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.runtimeconfig.json
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.pdb
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.DataSet.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\System.Data.Odbc.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\unix\lib\net10.0\System.Data.Odbc.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\win\lib\net10.0\System.Data.Odbc.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.AssemblyReference.cache
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.lblBaseDatos.resources
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.GenerateResource.cache
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.GeneratedMSBuildEditorConfig.editorconfig
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfoInputs.cache
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfo.cs
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.CoreCompileInputs.cache
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinForms.E4050A35.Up2Date
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\refint\WinFormsApp1.dll
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.pdb
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.genruntimeconfig.cache
+D:\OneDrive - Makita Perú S.A\Documents\JSOLIS\PROYECTOS\WMS\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\ref\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.exe
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.deps.json
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.runtimeconfig.json
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.pdb
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.DataSet.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\unix\lib\net10.0\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\win\lib\net10.0\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.AssemblyReference.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.lblBaseDatos.resources
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.GenerateResource.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfoInputs.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfo.cs
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.CoreCompileInputs.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinForms.E4050A35.Up2Date
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\refint\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.pdb
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.genruntimeconfig.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3.-WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\ref\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.exe
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.deps.json
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.runtimeconfig.json
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\WinFormsApp1.pdb
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\ExcelDataReader.DataSet.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\unix\lib\net10.0\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\bin\Debug\net10.0-windows\runtimes\win\lib\net10.0\System.Data.Odbc.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.AssemblyReference.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.lblBaseDatos.resources
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.GenerateResource.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfoInputs.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.AssemblyInfo.cs
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.csproj.CoreCompileInputs.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinForms.E4050A35.Up2Date
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\refint\WinFormsApp1.dll
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.pdb
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\WinFormsApp1.genruntimeconfig.cache
+C:\Users\SISTEMAS2\Documents\JSOLIS\DESARROLLO\3_WMS_UTILITARIO\U_C_UBICACION__SW\WinFormsApp1\WinFormsApp1\obj\Debug\net10.0-windows\ref\WinFormsApp1.dll

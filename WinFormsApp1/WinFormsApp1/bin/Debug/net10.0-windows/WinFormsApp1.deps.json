@@ -1,0 +1,90 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "WinFormsApp1/1.0.0": {
+        "dependencies": {
+          "ExcelDataReader": "3.9.0",
+          "ExcelDataReader.DataSet": "3.9.0",
+          "System.Data.Odbc": "10.0.11"
+        },
+        "runtime": {
+          "WinFormsApp1.dll": {}
+        }
+      },
+      "ExcelDataReader/3.9.0": {
+        "runtime": {
+          "lib/net8.0/ExcelDataReader.dll": {
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
+          }
+        }
+      },
+      "ExcelDataReader.DataSet/3.9.0": {
+        "dependencies": {
+          "ExcelDataReader": "3.9.0"
+        },
+        "runtime": {
+          "lib/net8.0/ExcelDataReader.DataSet.dll": {
+            "assemblyVersion": "3.9.0.0",
+            "fileVersion": "3.9.0.0"
+          }
+        }
+      },
+      "System.Data.Odbc/10.0.11": {
+        "runtime": {
+          "lib/net10.0/System.Data.Odbc.dll": {
+            "assemblyVersion": "10.0.0.11",
+            "fileVersion": "10.0.1126.37416"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/unix/lib/net10.0/System.Data.Odbc.dll": {
+            "rid": "unix",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.11",
+            "fileVersion": "10.0.1126.37416"
+          },
+          "runtimes/win/lib/net10.0/System.Data.Odbc.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.11",
+            "fileVersion": "10.0.1126.37416"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "WinFormsApp1/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ExcelDataReader/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3lEkUzG67UWPYj/xlX5Hua3MeQQktnK0B7WGzDjLpdJpBtct7szX0E4WB3Kl6C/8bNnbkyT2eO0FSPV+9CCemw==",
+      "path": "exceldatareader/3.9.0",
+      "hashPath": "exceldatareader.3.9.0.nupkg.sha512"
+    },
+    "ExcelDataReader.DataSet/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rOKCpr289dVorML/TK6vdWe8fLeWxFeqlzTYBnbi0Kz0nQ59vlQL4VozI3PcCOUWb8xVpB21g+Wiyp7zZG/OOQ==",
+      "path": "exceldatareader.dataset/3.9.0",
+      "hashPath": "exceldatareader.dataset.3.9.0.nupkg.sha512"
+    },
+    "System.Data.Odbc/10.0.11": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Vvl3IcQ2OIurI6Tpw0nzOTvMu1TvwXzXOf0nXSkt4DylS5k/hn+6Vi4w+oNjGxj5ZOCAg2c9ZEgjZ2PDuANn3g==",
+      "path": "system.data.odbc/10.0.11",
+      "hashPath": "system.data.odbc.10.0.11.nupkg.sha512"
+    }
+  }
+}
