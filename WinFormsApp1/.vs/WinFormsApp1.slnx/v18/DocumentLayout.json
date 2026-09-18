@@ -1,17 +1,17 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\",
+  "WorkspaceRootPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|c:\\users\\sistemas2\\documents\\jsolis\\desarrollo\\3_wms_utilitario\\u_c_ubicacion__sw\\winformsapp1\\winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|c:\\users\\sistemas2\\documents\\jsolis\\desarrollo\\3_wms_utilitario\\wms_winform_utilitario\\winformsapp1\\winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|solutionrelative:winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|solutionrelative:winformsapp1\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|c:\\users\\sistemas2\\documents\\jsolis\\desarrollo\\3_wms_utilitario\\u_c_ubicacion__sw\\winformsapp1\\winformsapp1\\winformsapp1.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "AbsoluteMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|c:\\users\\sistemas2\\documents\\jsolis\\desarrollo\\3_wms_utilitario\\wms_winform_utilitario\\winformsapp1\\winformsapp1\\winformsapp1.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
       "RelativeMoniker": "D:0:0:{BC150CE2-BC7F-BB20-899B-A29BED553BB8}|WinFormsApp1\\WinFormsApp1.csproj|solutionrelative:winformsapp1\\winformsapp1.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
     }
   ],
@@ -63,36 +63,37 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "Form1.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
+              "Title": "Form1.cs [Dise\u00F1o]",
+              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
               "RelativeDocumentMoniker": "WinFormsApp1\\Form1.cs",
-              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\Form1.cs [Design]",
-              "RelativeToolTip": "WinFormsApp1\\Form1.cs [Design]",
+              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\Form1.cs [Dise\u00F1o]",
+              "RelativeToolTip": "WinFormsApp1\\Form1.cs [Dise\u00F1o]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-09-11T21:41:47.337Z",
-              "EditorCaption": " [Design]"
+              "EditorCaption": " [Dise\u00F1o]"
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
               "Title": "WinFormsApp1.csproj",
-              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
+              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
               "RelativeDocumentMoniker": "WinFormsApp1\\WinFormsApp1.csproj",
-              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
+              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
               "RelativeToolTip": "WinFormsApp1\\WinFormsApp1.csproj",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-09-08T15:59:15.507Z"
+              "WhenOpened": "2026-09-08T15:59:15.507Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "Form1.cs",
-              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
+              "DocumentMoniker": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
               "RelativeDocumentMoniker": "WinFormsApp1\\Form1.cs",
-              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
+              "ToolTip": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\Form1.cs",
               "RelativeToolTip": "WinFormsApp1\\Form1.cs",
-              "ViewState": "AgIAANsLAAAAAAAAAAAgwAgMAAAdAAAAAAAAAA==",
+              "ViewState": "AgIAAD4PAAAAAAAAAAAMwFAPAAAOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-08-13T13:15:56.588Z",
               "EditorCaption": ""

@@ -67,6 +67,9 @@
             dgv_y = new DataGridView();
             dgv_x = new DataGridView();
             tabPage4 = new TabPage();
+            f4_importarExcel_2 = new Button();
+            f4_actualizarmasiva_2 = new Button();
+            f4_prevalidacion_2 = new Button();
             f4_exportarlog = new Button();
             label5 = new Label();
             f4_progressBar = new ProgressBar();
@@ -95,7 +98,7 @@
             // lblbdcon
             // 
             lblbdcon.AutoSize = true;
-            lblbdcon.Location = new Point(837, 58);
+            lblbdcon.Location = new Point(724, 41);
             lblbdcon.Name = "lblbdcon";
             lblbdcon.Size = new Size(12, 15);
             lblbdcon.TabIndex = 11;
@@ -104,7 +107,7 @@
             // lblUsuario
             // 
             lblUsuario.AutoSize = true;
-            lblUsuario.Location = new Point(838, 81);
+            lblUsuario.Location = new Point(900, 41);
             lblUsuario.Name = "lblUsuario";
             lblUsuario.Size = new Size(12, 15);
             lblUsuario.TabIndex = 12;
@@ -116,7 +119,7 @@
             tabControl1.Controls.Add(tabPage2);
             tabControl1.Controls.Add(tabPage3);
             tabControl1.Controls.Add(tabPage4);
-            tabControl1.Location = new Point(12, 64);
+            tabControl1.Location = new Point(12, 78);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
             tabControl1.Size = new Size(1059, 674);
@@ -474,6 +477,9 @@
             // 
             // tabPage4
             // 
+            tabPage4.Controls.Add(f4_importarExcel_2);
+            tabPage4.Controls.Add(f4_actualizarmasiva_2);
+            tabPage4.Controls.Add(f4_prevalidacion_2);
             tabPage4.Controls.Add(f4_exportarlog);
             tabPage4.Controls.Add(label5);
             tabPage4.Controls.Add(f4_progressBar);
@@ -487,6 +493,36 @@
             tabPage4.TabIndex = 3;
             tabPage4.Text = "Fase4";
             tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // f4_importarExcel_2
+            // 
+            f4_importarExcel_2.Location = new Point(567, 14);
+            f4_importarExcel_2.Name = "f4_importarExcel_2";
+            f4_importarExcel_2.Size = new Size(267, 23);
+            f4_importarExcel_2.TabIndex = 9;
+            f4_importarExcel_2.Text = "Importar Excel_2";
+            f4_importarExcel_2.UseVisualStyleBackColor = true;
+            f4_importarExcel_2.Click += button14_Click;
+            // 
+            // f4_actualizarmasiva_2
+            // 
+            f4_actualizarmasiva_2.Location = new Point(627, 325);
+            f4_actualizarmasiva_2.Name = "f4_actualizarmasiva_2";
+            f4_actualizarmasiva_2.Size = new Size(207, 23);
+            f4_actualizarmasiva_2.TabIndex = 8;
+            f4_actualizarmasiva_2.Text = "actualizacion_Masiva_2";
+            f4_actualizarmasiva_2.UseVisualStyleBackColor = true;
+            f4_actualizarmasiva_2.Click += f4_actualizarmasiva_2_Click;
+            // 
+            // f4_prevalidacion_2
+            // 
+            f4_prevalidacion_2.Location = new Point(17, 325);
+            f4_prevalidacion_2.Name = "f4_prevalidacion_2";
+            f4_prevalidacion_2.Size = new Size(207, 23);
+            f4_prevalidacion_2.TabIndex = 7;
+            f4_prevalidacion_2.Text = "pre-validacion_2";
+            f4_prevalidacion_2.UseVisualStyleBackColor = true;
+            f4_prevalidacion_2.Click += f4_prevalidacion_2_Click;
             // 
             // f4_exportarlog
             // 
@@ -509,7 +545,7 @@
             // 
             // f4_progressBar
             // 
-            f4_progressBar.Location = new Point(167, 330);
+            f4_progressBar.Location = new Point(167, 369);
             f4_progressBar.Name = "f4_progressBar";
             f4_progressBar.Size = new Size(667, 23);
             f4_progressBar.TabIndex = 4;
@@ -674,5 +710,8 @@
         private Label label5;
         private Label label6;
         private Label label7;
+        private Button f4_actualizarmasiva_2;
+        private Button f4_prevalidacion_2;
+        private Button f4_importarExcel_2;
     }
 }

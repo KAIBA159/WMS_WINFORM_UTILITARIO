@@ -54,8 +54,10 @@ namespace WinFormsApp1
         private readonly string dbServerGlobal = "192.168.1.17:30015";
         private readonly string dbUserGlobal = "SAPINST";
         private readonly string dbPassGlobal = "Ki$ta66mpe";
-        private readonly string dbSchemaGlobal = "SBO_MAKITA_20260717";
-        //private readonly string dbSchemaGlobal = "SBO_MAKITA_PE";
+        //private readonly string dbSchemaGlobal = "SBO_MAKITA_20260717";
+        //private readonly string dbSchemaGlobal = "SBO_MAKITA_WMS_080926_1";
+
+        private readonly string dbSchemaGlobal = "SBO_MAKITA_PE";
 
 
         // Cadena de conexión pre-ensamblada lista para usarse
@@ -68,8 +70,8 @@ namespace WinFormsApp1
         // ==========================================
         // VARIABLES GLOBALES DE CONEXIÓN SERVICE LAYER (SAP B1)
         // ==========================================
-        //private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
-        private readonly string slBaseDatosGlobal = "SBO_MAKITA_20260717";
+        private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
+        //private readonly string slBaseDatosGlobal = "SBO_MAKITA_WMS_080926_1";
         private readonly string slUsuarioGlobal = "manager";
         private readonly string slClaveGlobal = "m1r1";
         private readonly string slUrlBaseGlobal = "https://192.168.1.17:50000/b1s/v1/";
@@ -154,100 +156,100 @@ namespace WinFormsApp1
 
 
 
-        private async void button2_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                button2.Enabled = false;
-                button2.Text = "Consultando HANA, espere...";
+        //private async void button2_Click(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        button2.Enabled = false;
+        //        button2.Text = "Consultando HANA, espere...";
 
-                label1.Text = "Se encontró : Buscando...";
+        //        label1.Text = "Se encontró : Buscando...";
 
-                // 1. Configuramos las columnas del DataGridView 1 
-                dataGridView1.Columns.Clear();
-                dataGridView1.Columns.Add("Nro", "#");
+        //        // 1. Configuramos las columnas del DataGridView 1 
+        //        dataGridView1.Columns.Clear();
+        //        dataGridView1.Columns.Add("Nro", "#");
 
-                // ¡AGREGAMOS EL ABSENTRY (Fundamental para el Botón 4)!
-                dataGridView1.Columns.Add("AbsEntry", "ID Interno");
+        //        // ¡AGREGAMOS EL ABSENTRY (Fundamental para el Botón 4)!
+        //        dataGridView1.Columns.Add("AbsEntry", "ID Interno");
 
-                dataGridView1.Columns.Add("BinCode", "Código Ubicación");
-                dataGridView1.Columns.Add("WhsCode", "Almacén");
-                dataGridView1.Columns.Add("Sub1", "Fila");
-                dataGridView1.Columns.Add("Sub2", "Cuerpo");
-                dataGridView1.Columns.Add("Sub3", "Piso");
-                dataGridView1.Columns.Add("Sub4", "Fondo");
-                dataGridView1.Columns.Add("Inactive", "Inactivo");
+        //        dataGridView1.Columns.Add("BinCode", "Código Ubicación");
+        //        dataGridView1.Columns.Add("WhsCode", "Almacén");
+        //        dataGridView1.Columns.Add("Sub1", "Fila");
+        //        dataGridView1.Columns.Add("Sub2", "Cuerpo");
+        //        dataGridView1.Columns.Add("Sub3", "Piso");
+        //        dataGridView1.Columns.Add("Sub4", "Fondo");
+        //        dataGridView1.Columns.Add("Inactive", "Inactivo");
 
-                // Ajustamos diseño visual
-                dataGridView1.Columns["Nro"].Width = 40;
+        //        // Ajustamos diseño visual
+        //        dataGridView1.Columns["Nro"].Width = 40;
 
-                // ¡LA MAGIA AQUÍ! Ocultamos la columna para no ensuciar tu diseño visual en pantalla
-                dataGridView1.Columns["AbsEntry"].Visible = false;
+        //        // ¡LA MAGIA AQUÍ! Ocultamos la columna para no ensuciar tu diseño visual en pantalla
+        //        dataGridView1.Columns["AbsEntry"].Visible = false;
 
-                // 2. Endpoint actualizado: Pedimos 'AbsEntry' en el $select a la API
-                string nextLink = "BinLocations?$select=AbsEntry,BinCode,Warehouse,Sublevel1,Sublevel2,Sublevel3,Sublevel4,Inactive";
-                int totalRecords = 0;
+        //        // 2. Endpoint actualizado: Pedimos 'AbsEntry' en el $select a la API
+        //        string nextLink = "BinLocations?$select=AbsEntry,BinCode,Warehouse,Sublevel1,Sublevel2,Sublevel3,Sublevel4,Inactive";
+        //        int totalRecords = 0;
 
-                // 3. Ciclo de paginación OData (recorrerá todas las ubicaciones)
-                while (!string.IsNullOrEmpty(nextLink))
-                {
-                    HttpResponseMessage response = await client.GetAsync(nextLink);
-                    response.EnsureSuccessStatusCode();
+        //        // 3. Ciclo de paginación OData (recorrerá todas las ubicaciones)
+        //        while (!string.IsNullOrEmpty(nextLink))
+        //        {
+        //            HttpResponseMessage response = await client.GetAsync(nextLink);
+        //            response.EnsureSuccessStatusCode();
 
-                    string jsonResponse = await response.Content.ReadAsStringAsync();
+        //            string jsonResponse = await response.Content.ReadAsStringAsync();
 
-                    using (JsonDocument doc = JsonDocument.Parse(jsonResponse))
-                    {
-                        JsonElement root = doc.RootElement;
-                        JsonElement values = root.GetProperty("value");
+        //            using (JsonDocument doc = JsonDocument.Parse(jsonResponse))
+        //            {
+        //                JsonElement root = doc.RootElement;
+        //                JsonElement values = root.GetProperty("value");
 
-                        foreach (JsonElement item in values.EnumerateArray())
-                        {
-                            // Capturamos el AbsEntry y todos los campos nativos
-                            string absEntry = item.GetProperty("AbsEntry").ToString();
-                            string binCode = item.GetProperty("BinCode").ToString();
-                            string whsCode = item.GetProperty("Warehouse").ToString();
-                            string fila = item.GetProperty("Sublevel1").ToString();
-                            string cuerpo = item.GetProperty("Sublevel2").ToString();
-                            string piso = item.GetProperty("Sublevel3").ToString();
-                            string fondo = item.GetProperty("Sublevel4").ToString();
-                            string inactive = item.GetProperty("Inactive").ToString();
+        //                foreach (JsonElement item in values.EnumerateArray())
+        //                {
+        //                    // Capturamos el AbsEntry y todos los campos nativos
+        //                    string absEntry = item.GetProperty("AbsEntry").ToString();
+        //                    string binCode = item.GetProperty("BinCode").ToString();
+        //                    string whsCode = item.GetProperty("Warehouse").ToString();
+        //                    string fila = item.GetProperty("Sublevel1").ToString();
+        //                    string cuerpo = item.GetProperty("Sublevel2").ToString();
+        //                    string piso = item.GetProperty("Sublevel3").ToString();
+        //                    string fondo = item.GetProperty("Sublevel4").ToString();
+        //                    string inactive = item.GetProperty("Inactive").ToString();
 
-                            totalRecords++;
+        //                    totalRecords++;
 
-                            // Llenamos la fila incluyendo el absEntry (que estará oculto)
-                            dataGridView1.Rows.Add(totalRecords, absEntry, binCode, whsCode, fila, cuerpo, piso, fondo, inactive);
-                        }
+        //                    // Llenamos la fila incluyendo el absEntry (que estará oculto)
+        //                    dataGridView1.Rows.Add(totalRecords, absEntry, binCode, whsCode, fila, cuerpo, piso, fondo, inactive);
+        //                }
 
-                        // 4. Verificamos si HANA nos manda una siguiente "página" de resultados
-                        if (root.TryGetProperty("odata.nextLink", out JsonElement nextLinkElement))
-                        {
-                            string link = nextLinkElement.GetString();
-                            nextLink = link.Contains("/b1s/v1/") ? link.Substring(link.IndexOf("/b1s/v1/") + 8) : link;
-                        }
-                        else
-                        {
-                            nextLink = null; // Terminamos de leer toda la base
-                        }
-                    }
-                }
+        //                // 4. Verificamos si HANA nos manda una siguiente "página" de resultados
+        //                if (root.TryGetProperty("odata.nextLink", out JsonElement nextLinkElement))
+        //                {
+        //                    string link = nextLinkElement.GetString();
+        //                    nextLink = link.Contains("/b1s/v1/") ? link.Substring(link.IndexOf("/b1s/v1/") + 8) : link;
+        //                }
+        //                else
+        //                {
+        //                    nextLink = null; // Terminamos de leer toda la base
+        //                }
+        //            }
+        //        }
 
-                // 5. Actualizamos el Label con el total exacto de registros encontrados
-                label1.Text = $"Se encontró : {totalRecords}";
+        //        // 5. Actualizamos el Label con el total exacto de registros encontrados
+        //        label1.Text = $"Se encontró : {totalRecords}";
 
-                MessageBox.Show($"¡Éxito! Se cargaron {totalRecords} ubicaciones actuales desde la base de datos.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al consultar ubicaciones: " + ex.Message, "Error Service Layer", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                label1.Text = "Se encontró : Error";
-            }
-            finally
-            {
-                button2.Enabled = true;
-                button2.Text = "Consulta Ubicaciones en BD";
-            }
-        }
+        //        MessageBox.Show($"¡Éxito! Se cargaron {totalRecords} ubicaciones actuales desde la base de datos.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MessageBox.Show("Error al consultar ubicaciones: " + ex.Message, "Error Service Layer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        //        label1.Text = "Se encontró : Error";
+        //    }
+        //    finally
+        //    {
+        //        button2.Enabled = true;
+        //        button2.Text = "Consulta Ubicaciones en BD";
+        //    }
+        //}
 
 
 
@@ -1151,66 +1153,131 @@ namespace WinFormsApp1
         private async void button7_Click_1(object sender, EventArgs e)
         {
 
+            //            try
+            //            {
+            //                button1.Enabled = false;
+            //                button1.Text = "Conectando...";
+
+            //                System.Net.ServicePointManager.ServerCertificateValidationCallback += (senderCert, cert, chain, sslPolicyErrors) => true;
+
+            //                if (client.BaseAddress == null)
+            //                {
+            //                    client.BaseAddress = new Uri(slUrlBaseGlobal);
+            //                }
+
+            //                string loginJson = $@"{{
+            //    ""CompanyDB"": ""{slBaseDatosGlobal}"",
+            //    ""UserName"": ""{slUsuarioGlobal}"",
+            //    ""Password"": ""{slClaveGlobal}""
+            //}}";
+
+            //                var content = new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json");
+
+            //                HttpResponseMessage response = await client.PostAsync("Login", content);
+
+            //                if (response.IsSuccessStatusCode)
+            //                {
+            //                    var cookies = response.Headers.GetValues("Set-Cookie");
+            //                    foreach (var cookie in cookies)
+            //                    {
+            //                        if (cookie.StartsWith("B1SESSION"))
+            //                        {
+            //                            sessionToken = cookie.Split(';')[0];
+            //                            client.DefaultRequestHeaders.Add("Cookie", sessionToken);
+            //                            break;
+            //                        }
+            //                    }
+
+            //                    textBox1.Text = "Conexión exitosa - " + sessionToken;
+
+            //                    lblbdcon.Text = $"Base Datos: {slBaseDatosGlobal}";
+            //                    lblUsuario.Text = $"Usuario     : {slUsuarioGlobal}";
+
+            //                    MessageBox.Show("Token generado correctamente. Ya podemos interactuar con la BD.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            //                }
+            //                else
+            //                {
+            //                    string error = await response.Content.ReadAsStringAsync();
+            //                    MessageBox.Show("Error de credenciales o SL: " + error, "Error de Login", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+            //                    lblbdcon.Text = "BD: Desconectado";
+            //                    lblUsuario.Text = "Usuario: -";
+            //                }
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                MessageBox.Show("Error de red/timeout: " + ex.Message, "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            //            }
+            //            finally
+            //            {
+            //                button1.Enabled = true;
+            //                button1.Text = "Generar Token";
+            //            }
+
+            button7.Enabled = false;
+            button7.Text = "Consultando HANA (Calculando Series)...";
+
             try
             {
-                button1.Enabled = false;
-                button1.Text = "Conectando...";
+                string connectionString = GetHanaConnectionString();
 
-                System.Net.ServicePointManager.ServerCertificateValidationCallback += (senderCert, cert, chain, sslPolicyErrors) => true;
+                string queryHana = @"
+    SELECT 
+        T0.""BinCode"" AS ""Ubicacion_Origen"",
+        T0.""AbsEntry"" AS ""Id_Ubicacion_Origen"",
+        T1.""ItemCode"" AS ""Codigo_Articulo"",
+        T3.""ItemName"" AS ""Descripcion"",
+        CASE WHEN T3.""ManSerNum"" = 'Y' THEN 1 ELSE T1.""OnHandQty"" END AS ""Cantidad_A_Mover"",
+        T3.""ManSerNum"" AS ""Maneja_Series"",
+        T4.""SysNumber"" AS ""Id_Serie_Interno"",
+        T4.""DistNumber"" AS ""Numero_Serie""
+    FROM OBIN T0
+    INNER JOIN OIBQ T1 ON T0.""AbsEntry"" = T1.""BinAbs""
+    INNER JOIN OITM T3 ON T1.""ItemCode"" = T3.""ItemCode""
+    LEFT JOIN OSBQ T2 ON T1.""ItemCode"" = T2.""ItemCode"" AND T1.""BinAbs"" = T2.""BinAbs"" AND T2.""OnHandQty"" > 0
+    LEFT JOIN OSRN T4 ON T2.""SnBMDAbs"" = T4.""AbsEntry""
+    WHERE T0.""WhsCode"" = 'ALM01' 
+      AND T1.""OnHandQty"" > 0 
+      AND T0.""BinCode"" <> 'ALM01UBICACIÓN-DE-SISTEMA'
+    ORDER BY T0.""BinCode"", T1.""ItemCode"";";
 
-                if (client.BaseAddress == null)
+                DataTable dtStock = await Task.Run(() =>
                 {
-                    client.BaseAddress = new Uri(slUrlBaseGlobal);
-                }
-
-                string loginJson = $@"{{
-    ""CompanyDB"": ""{slBaseDatosGlobal}"",
-    ""UserName"": ""{slUsuarioGlobal}"",
-    ""Password"": ""{slClaveGlobal}""
-}}";
-
-                var content = new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json");
-
-                HttpResponseMessage response = await client.PostAsync("Login", content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var cookies = response.Headers.GetValues("Set-Cookie");
-                    foreach (var cookie in cookies)
+                    DataTable dt = new DataTable();
+                    using (System.Data.Odbc.OdbcConnection conn = new System.Data.Odbc.OdbcConnection(connectionString))
                     {
-                        if (cookie.StartsWith("B1SESSION"))
+                        conn.Open();
+                        using (System.Data.Odbc.OdbcCommand cmd = new System.Data.Odbc.OdbcCommand(queryHana, conn))
                         {
-                            sessionToken = cookie.Split(';')[0];
-                            client.DefaultRequestHeaders.Add("Cookie", sessionToken);
-                            break;
+                            cmd.CommandTimeout = 120;
+                            using (System.Data.Odbc.OdbcDataAdapter da = new System.Data.Odbc.OdbcDataAdapter(cmd))
+                            {
+                                da.Fill(dt);
+                            }
                         }
                     }
+                    return dt;
+                });
 
-                    textBox1.Text = "Conexión exitosa - " + sessionToken;
+                dgv3.DataSource = dtStock;
 
-                    lblbdcon.Text = $"Base Datos: {slBaseDatosGlobal}";
-                    lblUsuario.Text = $"Usuario     : {slUsuarioGlobal}";
-
-                    MessageBox.Show("Token generado correctamente. Ya podemos interactuar con la BD.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    string error = await response.Content.ReadAsStringAsync();
-                    MessageBox.Show("Error de credenciales o SL: " + error, "Error de Login", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                    lblbdcon.Text = "BD: Desconectado";
-                    lblUsuario.Text = "Usuario: -";
-                }
+                MessageBox.Show($"Radiografía del almacén completada con éxito.\n\nSe extrajeron {dtStock.Rows.Count} registros listos para reubicar.",
+                                "WMS Makita - Consulta Exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error de red/timeout: " + ex.Message, "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Ocurrió un error al conectar con HANA por ODBC:\n\n{ex.Message}\n\nPor favor, verifica la configuración global o si tienes instalado el driver HDBODBC.",
+                                "Error de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                button1.Enabled = true;
-                button1.Text = "Generar Token";
+                button7.Enabled = true;
+                button7.Text = "Consultar UbicacionStock";
             }
+
+
+
+
 
         }
 
@@ -1516,35 +1583,123 @@ namespace WinFormsApp1
 
         }
 
+        //private async void button2_Click_1(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        button2.Enabled = false;
+        //        button2.Text = "Consultando HANA, espere...";
+
+        //        label1.Text = "Se encontró : Buscando...";
+
+        //        // 1. Configuramos las columnas del DataGridView 1 
+        //        dataGridView1.Columns.Clear();
+        //        dataGridView1.Columns.Add("Nro", "#");
+
+        //        // ¡AGREGAMOS EL ABSENTRY (Fundamental para el Botón 4)!
+        //        dataGridView1.Columns.Add("AbsEntry", "ID Interno");
+
+        //        dataGridView1.Columns.Add("BinCode", "Código Ubicación");
+        //        dataGridView1.Columns.Add("WhsCode", "Almacén");
+        //        dataGridView1.Columns.Add("Sub1", "Fila");
+        //        dataGridView1.Columns.Add("Sub2", "Cuerpo");
+        //        dataGridView1.Columns.Add("Sub3", "Piso");
+        //        dataGridView1.Columns.Add("Sub4", "Fondo");
+        //        dataGridView1.Columns.Add("Inactive", "Inactivo");
+
+        //        // Ajustamos diseño visual
+        //        dataGridView1.Columns["Nro"].Width = 40;
+
+        //        // ¡LA MAGIA AQUÍ! Ocultamos la columna para no ensuciar tu diseño visual en pantalla
+        //        dataGridView1.Columns["AbsEntry"].Visible = false;
+
+        //        // 2. Endpoint actualizado: Pedimos 'AbsEntry' en el $select a la API
+        //        string nextLink = "BinLocations?$select=AbsEntry,BinCode,Warehouse,Sublevel1,Sublevel2,Sublevel3,Sublevel4,Inactive";
+        //        int totalRecords = 0;
+
+        //        // 3. Ciclo de paginación OData (recorrerá todas las ubicaciones)
+        //        while (!string.IsNullOrEmpty(nextLink))
+        //        {
+        //            HttpResponseMessage response = await client.GetAsync(nextLink);
+        //            response.EnsureSuccessStatusCode();
+
+        //            string jsonResponse = await response.Content.ReadAsStringAsync();
+
+        //            using (JsonDocument doc = JsonDocument.Parse(jsonResponse))
+        //            {
+        //                JsonElement root = doc.RootElement;
+        //                JsonElement values = root.GetProperty("value");
+
+        //                foreach (JsonElement item in values.EnumerateArray())
+        //                {
+        //                    // Capturamos el AbsEntry y todos los campos nativos
+        //                    string absEntry = item.GetProperty("AbsEntry").ToString();
+        //                    string binCode = item.GetProperty("BinCode").ToString();
+        //                    string whsCode = item.GetProperty("Warehouse").ToString();
+        //                    string fila = item.GetProperty("Sublevel1").ToString();
+        //                    string cuerpo = item.GetProperty("Sublevel2").ToString();
+        //                    string piso = item.GetProperty("Sublevel3").ToString();
+        //                    string fondo = item.GetProperty("Sublevel4").ToString();
+        //                    string inactive = item.GetProperty("Inactive").ToString();
+
+        //                    totalRecords++;
+
+        //                    // Llenamos la fila incluyendo el absEntry (que estará oculto)
+        //                    dataGridView1.Rows.Add(totalRecords, absEntry, binCode, whsCode, fila, cuerpo, piso, fondo, inactive);
+        //                }
+
+        //                // 4. Verificamos si HANA nos manda una siguiente "página" de resultados
+        //                if (root.TryGetProperty("odata.nextLink", out JsonElement nextLinkElement))
+        //                {
+        //                    string link = nextLinkElement.GetString();
+        //                    nextLink = link.Contains("/b1s/v1/") ? link.Substring(link.IndexOf("/b1s/v1/") + 8) : link;
+        //                }
+        //                else
+        //                {
+        //                    nextLink = null; // Terminamos de leer toda la base
+        //                }
+        //            }
+        //        }
+
+        //        // 5. Actualizamos el Label con el total exacto de registros encontrados
+        //        label1.Text = $"Se encontró : {totalRecords}";
+
+        //        MessageBox.Show($"¡Éxito! Se cargaron {totalRecords} ubicaciones actuales desde la base de datos.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MessageBox.Show("Error al consultar ubicaciones: " + ex.Message, "Error Service Layer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        //        label1.Text = "Se encontró : Error";
+        //    }
+        //    finally
+        //    {
+        //        button2.Enabled = true;
+        //        button2.Text = "Consulta Ubicaciones en BD";
+        //    }
+
+
+        //}
+
+
         private async void button2_Click_1(object sender, EventArgs e)
         {
             try
             {
                 button2.Enabled = false;
                 button2.Text = "Consultando HANA, espere...";
-
                 label1.Text = "Se encontró : Buscando...";
 
-                // 1. Configuramos las columnas del DataGridView 1 
-                dataGridView1.Columns.Clear();
-                dataGridView1.Columns.Add("Nro", "#");
-
-                // ¡AGREGAMOS EL ABSENTRY (Fundamental para el Botón 4)!
-                dataGridView1.Columns.Add("AbsEntry", "ID Interno");
-
-                dataGridView1.Columns.Add("BinCode", "Código Ubicación");
-                dataGridView1.Columns.Add("WhsCode", "Almacén");
-                dataGridView1.Columns.Add("Sub1", "Fila");
-                dataGridView1.Columns.Add("Sub2", "Cuerpo");
-                dataGridView1.Columns.Add("Sub3", "Piso");
-                dataGridView1.Columns.Add("Sub4", "Fondo");
-                dataGridView1.Columns.Add("Inactive", "Inactivo");
-
-                // Ajustamos diseño visual
-                dataGridView1.Columns["Nro"].Width = 40;
-
-                // ¡LA MAGIA AQUÍ! Ocultamos la columna para no ensuciar tu diseño visual en pantalla
-                dataGridView1.Columns["AbsEntry"].Visible = false;
+                // 1. CREAMOS EL DATATABLE EN MEMORIA (Invisble y ultra rápido)
+                DataTable dtUbicaciones = new DataTable();
+                dtUbicaciones.Columns.Add("Nro");
+                dtUbicaciones.Columns.Add("AbsEntry");
+                dtUbicaciones.Columns.Add("BinCode");
+                dtUbicaciones.Columns.Add("WhsCode");
+                dtUbicaciones.Columns.Add("Sub1");
+                dtUbicaciones.Columns.Add("Sub2");
+                dtUbicaciones.Columns.Add("Sub3");
+                dtUbicaciones.Columns.Add("Sub4");
+                dtUbicaciones.Columns.Add("Inactive");
 
                 // 2. Endpoint actualizado: Pedimos 'AbsEntry' en el $select a la API
                 string nextLink = "BinLocations?$select=AbsEntry,BinCode,Warehouse,Sublevel1,Sublevel2,Sublevel3,Sublevel4,Inactive";
@@ -1577,8 +1732,8 @@ namespace WinFormsApp1
 
                             totalRecords++;
 
-                            // Llenamos la fila incluyendo el absEntry (que estará oculto)
-                            dataGridView1.Rows.Add(totalRecords, absEntry, binCode, whsCode, fila, cuerpo, piso, fondo, inactive);
+                            // LLENAMOS LA FILA EN EL DATATABLE EN LUGAR DEL DATAGRIDVIEW
+                            dtUbicaciones.Rows.Add(totalRecords, absEntry, binCode, whsCode, fila, cuerpo, piso, fondo, inactive);
                         }
 
                         // 4. Verificamos si HANA nos manda una siguiente "página" de resultados
@@ -1594,10 +1749,30 @@ namespace WinFormsApp1
                     }
                 }
 
-                // 5. Actualizamos el Label con el total exacto de registros encontrados
+                // 5. INYECTAMOS EL DATATABLE AL DATAGRIDVIEW DE UN SOLO GOLPE (DataBinding)
+                dataGridView1.DataSource = null; // Limpiamos rastros previos
+                dataGridView1.Columns.Clear();   // Limpiamos columnas creadas manualmente
+                dataGridView1.DataSource = dtUbicaciones;
+
+                // 6. AJUSTAMOS EL DISEÑO VISUAL DESPUÉS DE CARGAR LA DATA
+                dataGridView1.Columns["Nro"].HeaderText = "#";
+                dataGridView1.Columns["Nro"].Width = 40;
+
+                dataGridView1.Columns["AbsEntry"].HeaderText = "ID Interno";
+                dataGridView1.Columns["AbsEntry"].Visible = false; // El campo oculto que necesitamos para actualizar
+
+                dataGridView1.Columns["BinCode"].HeaderText = "Código Ubicación";
+                dataGridView1.Columns["WhsCode"].HeaderText = "Almacén";
+                dataGridView1.Columns["Sub1"].HeaderText = "Fila";
+                dataGridView1.Columns["Sub2"].HeaderText = "Cuerpo";
+                dataGridView1.Columns["Sub3"].HeaderText = "Piso";
+                dataGridView1.Columns["Sub4"].HeaderText = "Fondo";
+                dataGridView1.Columns["Inactive"].HeaderText = "Inactivo";
+
+                // 7. Actualizamos el Label con el total exacto
                 label1.Text = $"Se encontró : {totalRecords}";
 
-                MessageBox.Show($"¡Éxito! Se cargaron {totalRecords} ubicaciones actuales desde la base de datos.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"¡Éxito! Se cargaron {totalRecords} ubicaciones actuales desde la base de datos de manera ultra rápida.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -1609,12 +1784,11 @@ namespace WinFormsApp1
                 button2.Enabled = true;
                 button2.Text = "Consulta Ubicaciones en BD";
             }
-
-
         }
 
-        private void button3_Click_1(object sender, EventArgs e)
+        private async void button3_Click_1(object sender, EventArgs e)
         {
+
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
             openFileDialog.Title = "Seleccione el archivo DATAMASTER";
@@ -1624,93 +1798,124 @@ namespace WinFormsApp1
                 try
                 {
                     button3.Enabled = false;
-                    button3.Text = "Cargando Excel...";
+                    button3.Text = "Procesando Excel en RAM...";
                     label2.Text = "Total Excel : Cargando...";
 
                     System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-                    using (var stream = File.Open(openFileDialog.FileName, FileMode.Open, FileAccess.Read))
+                    string filePath = openFileDialog.FileName; // Capturamos la ruta para el hilo secundario
+
+                    // Variables para rescatar los resultados del hilo invisible
+                    DataTable dtUbicacionesExcel = null;
+                    int totalOriginal = 0;
+                    int totalUnicos = 0;
+                    int totalDuplicados = 0;
+                    bool hojaEncontrada = false;
+
+                    // ==========================================================
+                    // HILO EN SEGUNDO PLANO: Lectura y lógica pesada sin congelar la UI
+                    // ==========================================================
+                    await Task.Run(() =>
                     {
-                        using (var reader = ExcelReaderFactory.CreateReader(stream))
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
                         {
-                            var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
                             {
-                                ConfigureDataTable = (_) => new ExcelDataTableConfiguration()
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
                                 {
-                                    UseHeaderRow = true
-                                }
-                            });
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
 
-                            DataTable dtExcel = result.Tables["DATAMASTER"];
+                                // Verificamos si existe la hoja antes de extraerla
+                                if (result.Tables.Contains("DATAMASTER"))
+                                {
+                                    DataTable dtExcel = result.Tables["DATAMASTER"];
+                                    hojaEncontrada = true;
+                                    totalOriginal = dtExcel.Rows.Count;
 
-                            if (dtExcel != null)
-                            {
-                                int totalOriginal = dtExcel.Rows.Count;
+                                    // Filtramos duplicados con LINQ
+                                    var filasUnicas = dtExcel.AsEnumerable()
+                                        .GroupBy(row => new
+                                        {
+                                            Almacen = row[1]?.ToString().Trim() ?? "",
+                                            Fila = row[2]?.ToString().Trim() ?? "",
+                                            Cuerpo = row[3]?.ToString().Trim() ?? "",
+                                            Piso = row[4]?.ToString().Trim() ?? "",
+                                            Fondo = row[5]?.ToString().Trim() ?? ""
+                                        })
+                                        .Select(grupo => grupo.First())
+                                        .ToList();
 
-                                // Validamos y filtramos registros únicos basados en las columnas B, C, D, E y F (índices 1 al 5)
-                                var filasUnicas = dtExcel.AsEnumerable()
-                                    .GroupBy(row => new
+                                    totalUnicos = filasUnicas.Count;
+                                    totalDuplicados = totalOriginal - totalUnicos;
+
+                                    // 1. CREAMOS EL DATATABLE EN MEMORIA (En vez de tocar el DataGridView)
+                                    dtUbicacionesExcel = new DataTable();
+                                    dtUbicacionesExcel.Columns.Add("Nro", typeof(int));
+                                    dtUbicacionesExcel.Columns.Add("BinCodeRef", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Almacen", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Sub1", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Sub2", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Sub3", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Sub4", typeof(string));
+                                    dtUbicacionesExcel.Columns.Add("Inactive", typeof(string));
+
+                                    // 2. LLENAMOS EL DATATABLE EN RAM A MÁXIMA VELOCIDAD
+                                    int rowCount = 0;
+                                    foreach (var row in filasUnicas)
                                     {
-                                        Almacen = row[1]?.ToString().Trim(),
-                                        Fila = row[2]?.ToString().Trim(),
-                                        Cuerpo = row[3]?.ToString().Trim(),
-                                        Piso = row[4]?.ToString().Trim(),
-                                        Fondo = row[5]?.ToString().Trim()
-                                    })
-                                    .Select(grupo => grupo.First())
-                                    .ToList();
+                                        rowCount++;
+                                        string binRef = row[0]?.ToString().Trim() ?? "";
+                                        string whs = row[1]?.ToString().Trim() ?? "";
+                                        string fila = row[2]?.ToString().Trim() ?? "";
+                                        string cuerpo = row[3]?.ToString().Trim() ?? "";
+                                        string piso = row[4]?.ToString().Trim() ?? "";
+                                        string fondo = row[5]?.ToString().Trim() ?? "";
 
-                                int totalUnicos = filasUnicas.Count;
-                                int totalDuplicados = totalOriginal - totalUnicos;
-
-                                // 1. DGV2 estructurado idénticamente a DGV1 (sin campos extra)
-                                dataGridView2.Columns.Clear();
-                                dataGridView2.Columns.Add("Nro", "#");
-                                dataGridView2.Columns.Add("BinCodeRef", "Ubicación Referencial");
-                                dataGridView2.Columns.Add("Almacen", "Almacén");
-                                dataGridView2.Columns.Add("Sub1", "Fila");
-                                dataGridView2.Columns.Add("Sub2", "Cuerpo");
-                                dataGridView2.Columns.Add("Sub3", "Piso");
-                                dataGridView2.Columns.Add("Sub4", "Fondo");
-                                dataGridView2.Columns.Add("Inactive", "Inactivo");
-
-                                dataGridView2.Columns["Nro"].Width = 40;
-
-                                // 2. Volcamos EXCLUSIVAMENTE los registros únicos a la grilla
-                                int rowCount = 0;
-                                foreach (var row in filasUnicas)
-                                {
-                                    rowCount++;
-
-                                    string binRef = row[0].ToString();
-                                    string whs = row[1].ToString();
-                                    string fila = row[2].ToString();
-                                    string cuerpo = row[3].ToString();
-                                    string piso = row[4].ToString();
-                                    string fondo = row[5].ToString();
-
-                                    dataGridView2.Rows.Add(rowCount, binRef, whs, fila, cuerpo, piso, fondo, "tNO");
+                                        dtUbicacionesExcel.Rows.Add(rowCount, binRef, whs, fila, cuerpo, piso, fondo, "tNO");
+                                    }
                                 }
-
-                                label2.Text = $"Total Excel : {totalUnicos}";
-
-                                // 3. Notificación con el desglose exacto de duplicados omitidos y registros únicos
-                                MessageBox.Show(
-                                    $"¡Importación procesada con éxito!\n\n" +
-                                    $"• Total de filas leídas en Excel: {totalOriginal}\n" +
-                                    $"• Registros duplicados omitidos: {totalDuplicados}\n" +
-                                    $"• Registros únicos cargados: {totalUnicos}",
-                                    "WMS Makita - Control de Duplicados",
-                                    MessageBoxButtons.OK,
-                                    totalDuplicados > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information
-                                );
-                            }
-                            else
-                            {
-                                MessageBox.Show("No se encontró una hoja llamada 'DATAMASTER' en el Excel.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                label2.Text = "Total Excel : Error";
                             }
                         }
+                    });
+
+                    // ==========================================================
+                    // REGRESO AL HILO PRINCIPAL: Mostrar la data en pantalla
+                    // ==========================================================
+                    if (hojaEncontrada)
+                    {
+                        // 3. ASIGNAMOS EL DATATABLE AL DATAGRIDVIEW DE UN SOLO GOLPE (DataBinding)
+                        dataGridView2.DataSource = null;
+                        dataGridView2.Columns.Clear();
+                        dataGridView2.DataSource = dtUbicacionesExcel;
+
+                        // 4. FORMATEAMOS LAS COLUMNAS VISUALES
+                        dataGridView2.Columns["Nro"].HeaderText = "#";
+                        dataGridView2.Columns["Nro"].Width = 40;
+                        dataGridView2.Columns["BinCodeRef"].HeaderText = "Ubicación Referencial";
+                        dataGridView2.Columns["Almacen"].HeaderText = "Almacén";
+                        dataGridView2.Columns["Sub1"].HeaderText = "Fila";
+                        dataGridView2.Columns["Sub2"].HeaderText = "Cuerpo";
+                        dataGridView2.Columns["Sub3"].HeaderText = "Piso";
+                        dataGridView2.Columns["Sub4"].HeaderText = "Fondo";
+                        dataGridView2.Columns["Inactive"].HeaderText = "Inactivo";
+
+                        label2.Text = $"Total Excel : {totalUnicos}";
+
+                        MessageBox.Show(
+                            $"¡Importación procesada con éxito!\n\n" +
+                            $"• Total de filas leídas en Excel: {totalOriginal}\n" +
+                            $"• Registros duplicados omitidos: {totalDuplicados}\n" +
+                            $"• Registros únicos cargados: {totalUnicos}",
+                            "WMS Makita - Control de Duplicados",
+                            MessageBoxButtons.OK,
+                            totalDuplicados > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information
+                        );
+                    }
+                    else
+                    {
+                        MessageBox.Show("No se encontró una hoja llamada 'DATAMASTER' en el Excel.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        label2.Text = "Total Excel : Error";
                     }
                 }
                 catch (Exception ex)
@@ -1724,6 +1929,7 @@ namespace WinFormsApp1
                     button3.Text = "Importar Ubicaciones Finales/Reales";
                 }
             }
+
 
 
         }
@@ -1790,8 +1996,6 @@ namespace WinFormsApp1
 
         private async void button4_Click_1(object sender, EventArgs e)
         {
-
-
             button4.Enabled = false;
             button4.Text = "Procesando HANA...";
             dataGridView1.Enabled = false;
@@ -1806,81 +2010,103 @@ namespace WinFormsApp1
 
             System.Collections.Concurrent.ConcurrentBag<string> logErrores = new System.Collections.Concurrent.ConcurrentBag<string>();
 
-            int totalAProcesar = 0;
-            foreach (DataGridViewRow row in dataGridView2.Rows)
-            {
-                if (!row.IsNewRow) totalAProcesar++;
-            }
+            // ====================================================================
+            // FASE 0: PRE-EXTRACCIÓN DE INTERFAZ GRÁFICA A LA MEMORIA RAM (SÚPER RÁPIDO Y SEGURO)
+            // ====================================================================
+            lblProgreso.Text = "Fase 0: Preparando datos en memoria...";
 
-            var progress = new Progress<int>(procesadas =>
-            {
-                int porcentaje = totalAProcesar > 0 ? (int)((double)procesadas / totalAProcesar * 100) : 0;
-                if (porcentaje > 100) porcentaje = 100;
-
-                progressBar1.Value = porcentaje;
-                lblProgreso.Text = $"Procesando: {procesadas} de {totalAProcesar} ({porcentaje}%)";
-            });
-
-            // 2. Cargamos HANA a la Memoria RAM (Cruce ultra rápido)
+            // 1. Cargamos HANA a la memoria (Diccionario)
             var ubicacionesHANA = new Dictionary<string, string>();
-            foreach (DataGridViewRow row in dataGridView1.Rows)
-            {
-                if (row.IsNewRow) continue;
-                string binCode = row.Cells["BinCode"].Value?.ToString();
-                string absEntry = row.Cells["AbsEntry"].Value?.ToString();
+            var estatusHANA = new Dictionary<string, string>(); // Para saber si ya está Inactivo o no en SAP
 
-                if (!string.IsNullOrEmpty(binCode))
+            // Extraemos DataTable directo en lugar de recorrer las filas visuales (asumiendo que usaste DataBinding)
+            DataTable dtHana = (DataTable)dataGridView1.DataSource;
+            if (dtHana != null)
+            {
+                foreach (DataRow row in dtHana.Rows)
                 {
-                    // SOLUCIÓN AL ERROR -2035: Limpiamos los separadores y espacios
-                    string binCodeLimpio = binCode.Replace("-", "").Trim();
-                    ubicacionesHANA[binCodeLimpio] = absEntry;
+                    string binCode = row["BinCode"]?.ToString() ?? "";
+                    string absEntry = row["AbsEntry"]?.ToString() ?? "";
+                    string inactive = row["Inactive"]?.ToString() ?? "tNO";
+
+                    if (!string.IsNullOrEmpty(binCode))
+                    {
+                        string binCodeLimpio = binCode.Replace("-", "").Trim();
+                        ubicacionesHANA[binCodeLimpio] = absEntry;
+                        estatusHANA[binCodeLimpio] = inactive;
+                    }
                 }
             }
 
-            var tareas = new List<Task>();
+            // 2. Cargamos Excel a la memoria (Lista de Objetos)
+            var listaExcelAProcesar = new List<dynamic>();
+            HashSet<string> codigosExcelLimpio = new HashSet<string>();
 
-            // 3. Concurrencia controlada a 15 hilos hacia Service Layer
-            using (SemaphoreSlim semaphore = new SemaphoreSlim(15))
+            DataTable dtExcel = (DataTable)dataGridView2.DataSource;
+            if (dtExcel != null)
             {
-                foreach (DataGridViewRow rowExcel in dataGridView2.Rows)
+                foreach (DataRow rowExcel in dtExcel.Rows)
                 {
-                    if (rowExcel.IsNewRow) continue;
+                    string whs = rowExcel["Almacen"]?.ToString().Trim() ?? "";
+                    string fila = rowExcel["Sub1"]?.ToString().Trim() ?? "";
+                    string cuerpo = rowExcel["Sub2"]?.ToString().Trim() ?? "";
+                    string piso = rowExcel["Sub3"]?.ToString().Trim() ?? "";
+                    string fondo = rowExcel["Sub4"]?.ToString().Trim() ?? "";
+                    string inactive = rowExcel["Inactive"]?.ToString().Trim() ?? "tNO";
 
-                    // Limpieza extrema de espacios vacíos (trailing spaces) de cada celda del Excel
-                    string whs = rowExcel.Cells["Almacen"].Value?.ToString().Trim() ?? "";
-                    string fila = rowExcel.Cells["Sub1"].Value?.ToString().Trim() ?? "";
-                    string cuerpo = rowExcel.Cells["Sub2"].Value?.ToString().Trim() ?? "";
-                    string piso = rowExcel.Cells["Sub3"].Value?.ToString().Trim() ?? "";
-                    string fondo = rowExcel.Cells["Sub4"].Value?.ToString().Trim() ?? "";
-                    string inactive = rowExcel.Cells["Inactive"].Value?.ToString().Trim() ?? "tNO";
-
-                    // Armamos la llave limpia
                     string cleanBinCode = $"{whs}{fila}{cuerpo}{piso}{fondo}";
+                    codigosExcelLimpio.Add(cleanBinCode);
 
                     // Protección de las ubicaciones de sistema
-                    if (cleanBinCode.Contains("UBICACIÓN-DE-SISTEMA") || cleanBinCode.Contains("SYSTEM"))
+                    if (cleanBinCode.Contains("UBICACIÓN-DE-SISTEMA") || cleanBinCode.Contains("SYSTEM") || cleanBinCode.Contains("MUELLE"))
                     {
                         continue;
                     }
 
+                    listaExcelAProcesar.Add(new
+                    {
+                        Whs = whs,
+                        Fila = fila,
+                        Cuerpo = cuerpo,
+                        Piso = piso,
+                        Fondo = fondo,
+                        Inactive = inactive,
+                        CleanBinCode = cleanBinCode
+                    });
+                }
+            }
+
+            int totalAProcesar = listaExcelAProcesar.Count;
+
+            // Reportador de progreso seguro para hilos
+            var progress = new Progress<int>(procesadas =>
+            {
+                int porcentaje = totalAProcesar > 0 ? (int)((double)procesadas / totalAProcesar * 100) : 0;
+                if (porcentaje > 100) porcentaje = 100;
+                progressBar1.Value = Math.Min(100, Math.Max(0, porcentaje));
+                lblProgreso.Text = $"Fase 1 (Crear/Actualizar): {procesadas} de {totalAProcesar} ({porcentaje}%)";
+            });
+
+            // ====================================================================
+            // INICIO ESCENARIO 1 y 2: ACTUALIZAR O CREAR EN SAP (Multi-hilo sin tocar UI)
+            // ====================================================================
+            var tareas = new List<Task>();
+
+            using (SemaphoreSlim semaphore = new SemaphoreSlim(15))
+            {
+                foreach (var item in listaExcelAProcesar)
+                {
                     await semaphore.WaitAsync();
 
                     tareas.Add(Task.Run(async () =>
                     {
                         try
                         {
-                            if (ubicacionesHANA.ContainsKey(cleanBinCode))
+                            if (ubicacionesHANA.ContainsKey(item.CleanBinCode))
                             {
-                                // ==========================================
-                                // ACTUALIZAR (PATCH) - La ubicación YA existe
-                                // ==========================================
-                                string entry = ubicacionesHANA[cleanBinCode];
-
-                                // Inyectamos el valor "2" (Picking) 
-                                string jsonPatch = $@"{{ 
-                            ""Inactive"": ""{inactive}"",
-                            ""U_WAR_DW_TYPE_LOCATION"": ""2""
-                        }}";
+                                // === ACTUALIZAR (PATCH) ===
+                                string entry = ubicacionesHANA[item.CleanBinCode];
+                                string jsonPatch = $@"{{ ""Inactive"": ""{item.Inactive}"", ""U_WAR_DW_TYPE_LOCATION"": ""2"" }}";
 
                                 var content = new StringContent(jsonPatch, System.Text.Encoding.UTF8, "application/json");
                                 var response = await client.PatchAsync($"BinLocations({entry})", content);
@@ -1888,23 +2114,20 @@ namespace WinFormsApp1
                                 if (!response.IsSuccessStatusCode)
                                 {
                                     string sapError = await response.Content.ReadAsStringAsync();
-                                    throw new Exception($"HTTP {(int)response.StatusCode} - Detalles SAP: {sapError}");
+                                    throw new Exception($"HTTP {(int)response.StatusCode} - {sapError}");
                                 }
-
                                 System.Threading.Interlocked.Increment(ref actualizadas);
                             }
                             else
                             {
-                                // ==========================================
-                                // CREAR (POST) - La ubicación es NUEVA
-                                // ==========================================
+                                // === CREAR (POST) ===
                                 string jsonPost = $@"{{
-                            ""Warehouse"": ""{whs}"",
-                            ""Sublevel1"": ""{fila}"",
-                            ""Sublevel2"": ""{cuerpo}"",
-                            ""Sublevel3"": ""{piso}"",
-                            ""Sublevel4"": ""{fondo}"",
-                            ""Inactive"": ""{inactive}"",
+                            ""Warehouse"": ""{item.Whs}"",
+                            ""Sublevel1"": ""{item.Fila}"",
+                            ""Sublevel2"": ""{item.Cuerpo}"",
+                            ""Sublevel3"": ""{item.Piso}"",
+                            ""Sublevel4"": ""{item.Fondo}"",
+                            ""Inactive"": ""{item.Inactive}"",
                             ""U_WAR_DW_TYPE_LOCATION"": ""2""
                         }}";
 
@@ -1914,17 +2137,16 @@ namespace WinFormsApp1
                                 if (!response.IsSuccessStatusCode)
                                 {
                                     string sapError = await response.Content.ReadAsStringAsync();
-                                    throw new Exception($"HTTP {(int)response.StatusCode} - Detalles SAP: {sapError}");
+                                    throw new Exception($"HTTP {(int)response.StatusCode} - {sapError}");
                                 }
-
                                 System.Threading.Interlocked.Increment(ref creadas);
                             }
                         }
                         catch (Exception ex)
                         {
                             System.Threading.Interlocked.Increment(ref errores);
-                            string tipoOperacion = ubicacionesHANA.ContainsKey(cleanBinCode) ? "ACTUALIZAR" : "CREAR";
-                            logErrores.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL {tipoOperacion} | Ubicación: {cleanBinCode} | Motivo: {ex.Message}");
+                            string tipoOperacion = ubicacionesHANA.ContainsKey(item.CleanBinCode) ? "ACTUALIZAR" : "CREAR";
+                            logErrores.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL {tipoOperacion} | Ubicación: {item.CleanBinCode} | Motivo: {ex.Message}");
                         }
                         finally
                         {
@@ -1934,7 +2156,6 @@ namespace WinFormsApp1
                         }
                     }));
                 }
-
                 await Task.WhenAll(tareas);
             }
 
@@ -1942,42 +2163,24 @@ namespace WinFormsApp1
             // INICIO ESCENARIO 3: BARRIDO DE INACTIVACIÓN (Limpieza de fantasmas)
             // ====================================================================
             lblProgreso.Text = "Fase 2: Buscando y bloqueando ubicaciones sobrantes en HANA...";
-
-            HashSet<string> codigosExcel = new HashSet<string>();
-            foreach (DataGridViewRow rowExcel in dataGridView2.Rows)
-            {
-                if (rowExcel.IsNewRow) continue;
-                string whs = rowExcel.Cells["Almacen"].Value?.ToString().Trim() ?? "";
-                string fila = rowExcel.Cells["Sub1"].Value?.ToString().Trim() ?? "";
-                string cuerpo = rowExcel.Cells["Sub2"].Value?.ToString().Trim() ?? "";
-                string piso = rowExcel.Cells["Sub3"].Value?.ToString().Trim() ?? "";
-                string fondo = rowExcel.Cells["Sub4"].Value?.ToString().Trim() ?? "";
-
-                codigosExcel.Add($"{whs}{fila}{cuerpo}{piso}{fondo}");
-            }
-
             var tareasLimpieza = new List<Task>();
 
             using (SemaphoreSlim semaforoLimpieza = new SemaphoreSlim(15))
             {
-                foreach (DataGridViewRow rowHana in dataGridView1.Rows)
+                // Recorremos el diccionario extraído previamente, no el DataGridView
+                foreach (var kvp in ubicacionesHANA)
                 {
-                    if (rowHana.IsNewRow) continue;
+                    string binCodeHanaLimpio = kvp.Key;
+                    string absEntryHana = kvp.Value;
+                    string statusActual = estatusHANA[binCodeHanaLimpio];
 
-                    string binCodeHana = rowHana.Cells["BinCode"].Value?.ToString().Trim() ?? "";
-                    string absEntryHana = rowHana.Cells["AbsEntry"].Value?.ToString() ?? "";
-                    string statusActual = rowHana.Cells["Inactive"].Value?.ToString() ?? "tNO";
-
-                    // Limpiamos los guiones del código HANA para poder compararlo con el HashSet
-                    string binCodeHanaLimpio = binCodeHana.Replace("-", "");
-
-                    if (binCodeHanaLimpio.Contains("UBICACIÓN-DE-SISTEMA") || binCodeHanaLimpio.Contains("SYS"))
+                    if (binCodeHanaLimpio.Contains("UBICACIÓN-DE-SISTEMA") || binCodeHanaLimpio.Contains("SYS") || binCodeHanaLimpio.Contains("MUELLE"))
                     {
                         continue;
                     }
 
                     // REGLA: Si está en HANA, pero NO está en Excel, y está ACTIVA -> ¡Inactivar!
-                    if (!string.IsNullOrEmpty(binCodeHanaLimpio) && !codigosExcel.Contains(binCodeHanaLimpio) && statusActual == "tNO")
+                    if (!codigosExcelLimpio.Contains(binCodeHanaLimpio) && statusActual == "tNO")
                     {
                         await semaforoLimpieza.WaitAsync();
 
@@ -1987,7 +2190,6 @@ namespace WinFormsApp1
                             {
                                 string jsonPatch = $@"{{ ""Inactive"": ""tYES"" }}";
                                 var content = new StringContent(jsonPatch, System.Text.Encoding.UTF8, "application/json");
-
                                 var response = await client.PatchAsync($"BinLocations({absEntryHana})", content);
 
                                 if (response.IsSuccessStatusCode)
@@ -1997,13 +2199,12 @@ namespace WinFormsApp1
                                 else
                                 {
                                     string sapError = await response.Content.ReadAsStringAsync();
-                                    logErrores.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL INACTIVAR SOBRANTE | Ubicación: {binCodeHana} | Motivo: {sapError}");
-                                    System.Threading.Interlocked.Increment(ref errores);
+                                    throw new Exception($"HTTP {(int)response.StatusCode} - {sapError}");
                                 }
                             }
                             catch (Exception ex)
                             {
-                                logErrores.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL INACTIVAR SOBRANTE | Ubicación: {binCodeHana} | Motivo: {ex.Message}");
+                                logErrores.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL INACTIVAR SOBRANTE | Ubicación: {binCodeHanaLimpio} | Motivo: {ex.Message}");
                                 System.Threading.Interlocked.Increment(ref errores);
                             }
                             finally
@@ -2015,11 +2216,10 @@ namespace WinFormsApp1
                 }
                 await Task.WhenAll(tareasLimpieza);
             }
-            // ====================================================================
-            // FIN ESCENARIO 3
-            // ====================================================================
 
-            // 4. GENERACIÓN DEL ARCHIVO FÍSICO DE LOG (Si hubo errores)
+            // ====================================================================
+            // FIN: REPORTE Y CULMINACIÓN
+            // ====================================================================
             if (errores > 0)
             {
                 try
@@ -2041,7 +2241,7 @@ namespace WinFormsApp1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("No se pudo guardar/abrir el archivo Log: " + ex.Message, "Error de I/O", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("No se pudo guardar el archivo Log: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             else
@@ -2055,11 +2255,7 @@ namespace WinFormsApp1
             button4.Enabled = true;
             button4.Text = "Actualizar/Crear en BD";
             lblProgreso.Text = "Proceso Completado.";
-
-
-
-
-
+            progressBar1.Value = 100;
         }
 
         private async void button1_Click_2(object sender, EventArgs e)
@@ -2936,21 +3132,26 @@ namespace WinFormsApp1
 
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el archivo de Series (ALM03/16/18)";
 
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     f4_importarExcel.Enabled = false;
-                    label5.Text = "Leyendo Excel masivo...";
+                    label5.Text = "Leyendo Excel masivo y limpiando datos...";
                     f4_progressBar.Style = ProgressBarStyle.Marquee;
                     f4_progressBar.Visible = true;
 
                     System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName; // Guardamos la ruta para el hilo secundario
 
+                    // ==========================================================
+                    // HILO EN SEGUNDO PLANO: Lectura y mapeo sin congelar la UI
+                    // ==========================================================
                     await Task.Run(() =>
                     {
-                        using (var stream = File.Open(openFileDialog.FileName, FileMode.Open, FileAccess.Read))
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
                         {
                             using (var reader = ExcelReaderFactory.CreateReader(stream))
                             {
@@ -2959,42 +3160,79 @@ namespace WinFormsApp1
                                     ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
                                 });
 
-                                DataTable rawData = result.Tables[0];
+                                DataTable rawData = result.Tables[0]; // Asumimos que los datos están en la primera hoja
+
+                                // Reconstruimos la tabla maestra en memoria con el nuevo formato del correo
                                 dtExcelFase4Completo = new DataTable();
                                 dtExcelFase4Completo.Columns.Add("ItemCode", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("Descripcion", typeof(string));
                                 dtExcelFase4Completo.Columns.Add("SerieSAP", typeof(string));
                                 dtExcelFase4Completo.Columns.Add("SerieFisico", typeof(string));
-                                dtExcelFase4Completo.Columns.Add("ComentarioExcel", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("WhsCode", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("WhsName", typeof(string));
                                 dtExcelFase4Completo.Columns.Add("EstadoValidacion", typeof(string));
-                                dtExcelFase4Completo.Columns.Add("SysNumber", typeof(int));
+                                dtExcelFase4Completo.Columns.Add("SysNumber", typeof(int)); // Oculto para inyectar a SAP
 
                                 foreach (DataRow row in rawData.Rows)
                                 {
+                                    // 1. Extraemos y limpiamos los datos según el nuevo índice (A=0, B=1, C=2, D=3, E=4, F=5)
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string descripcion = row[1]?.ToString().Trim() ?? "";
+                                    string serieSAP = row[2]?.ToString().Trim() ?? "";
+                                    string serieFisico = row[3]?.ToString().Trim() ?? "";
+                                    string whsCode = row[4]?.ToString().Trim() ?? "";
+                                    string whsName = row[5]?.ToString().Trim() ?? "";
+
+                                    // 2. Filtro de integridad: Saltamos filas vacías o basura del final del Excel
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(serieFisico))
+                                        continue;
+
+                                    // 3. Agregamos a nuestra tabla estructural limpia
                                     dtExcelFase4Completo.Rows.Add(
-                                row[1]?.ToString().Trim(), // Ahora el Artículo está en la Columna B (índice 1)
-                                row[2]?.ToString().Trim(), // Ahora la SerieSAP está en la Columna C (índice 2)
-                                row[3]?.ToString().Trim(), // Ahora la SerieFisico está en la Columna D (índice 3)
-                                row[4]?.ToString().Trim(), // Ahora el Comentario está en la Columna E (índice 4)
-                                "Pendiente",
-                                0
-                                );
+                                        itemCode,
+                                        descripcion,
+                                        serieSAP,
+                                        serieFisico,
+                                        whsCode,
+                                        whsName,
+                                        "Pendiente de validación", // Estado listo para el siguiente botón
+                                        0 // SysNumber temporal hasta la validación
+                                    );
                                 }
                             }
                         }
                     });
 
-                    // DataBinding masivo ultra rápido
+                    // ==========================================================
+                    // VUELTA AL HILO PRINCIPAL: Inyección a la grilla (DataBinding)
+                    // ==========================================================
+
+                    f4_dgv.DataSource = null;
+                    f4_dgv.Columns.Clear();
                     f4_dgv.DataSource = dtExcelFase4Completo;
+
+                    // Formateo visual y amigable de las cabeceras
+                    f4_dgv.Columns["ItemCode"].HeaderText = "Nro Artículo";
+                    f4_dgv.Columns["Descripcion"].HeaderText = "Descripción";
+                    f4_dgv.Columns["SerieSAP"].HeaderText = "Serie SAP";
+                    f4_dgv.Columns["SerieFisico"].HeaderText = "Serie Física";
+                    f4_dgv.Columns["WhsCode"].HeaderText = "Cód. Almacén";
+                    f4_dgv.Columns["WhsName"].HeaderText = "Almacén";
+
+                    f4_dgv.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    f4_dgv.Columns["EstadoValidacion"].Width = 220;
+
+                    // Ocultamos la llave maestra del sistema para no ensuciar la pantalla
                     f4_dgv.Columns["SysNumber"].Visible = false;
-                    f4_dgv.Columns["EstadoValidacion"].Width = 250;
 
                     f4_progressBar.Style = ProgressBarStyle.Blocks;
                     f4_progressBar.Value = 100;
-                    label5.Text = $"Registros importados: {dtExcelFase4Completo.Rows.Count:N0}";
+                    label5.Text = $"Registros limpios importados: {dtExcelFase4Completo.Rows.Count:N0}";
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error: " + ex.Message, "Fallo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Fallo de Importación", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    label5.Text = "Error en importación";
                 }
                 finally
                 {
@@ -3002,7 +3240,6 @@ namespace WinFormsApp1
                     f4_progressBar.Visible = false;
                 }
             }
-
 
 
 
@@ -3015,28 +3252,30 @@ namespace WinFormsApp1
             if (dtExcelFase4Completo == null || dtExcelFase4Completo.Rows.Count == 0) return;
 
             f4_prevalidacion.Enabled = false;
-            label5.Text = "Descargando maestro de series y auditando...";
+            label5.Text = "Descargando maestro de series y diagnosticando...";
             f4_progressBar.Style = ProgressBarStyle.Marquee;
             f4_progressBar.Visible = true;
 
+            // 1. Agregamos la columna oculta para los Fantasmas (si no existe)
+            if (!dtExcelFase4Completo.Columns.Contains("SysNumberFantasma"))
+            {
+                dtExcelFase4Completo.Columns.Add("SysNumberFantasma", typeof(int));
+            }
+
             var dicSeriesSAP = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            //string querySeries = @"SELECT ""ItemCode"", ""DistNumber"", ""SysNumber"" FROM OSRN";
-
-
-            // AHORA (Traemos el AbsEntry):
             string querySeries = @"SELECT ""ItemCode"", ""DistNumber"", ""AbsEntry"" FROM OSRN";
-
 
             int listosParaActualizar = 0;
             int erroresDetectados = 0;
             int falsosOkDetectados = 0;
-            int seriesOkReales = 0; // <-- VARIABLE AGREGADA PARA SOLUCIONAR EL ERROR
+            int seriesOkReales = 0;
+            int fantasmasDetectados = 0; // NUEVO CONTADOR
 
             try
             {
                 await Task.Run(() =>
                 {
-                    // 1. Cargar HANA
+                    // 2. Cargar HANA a la RAM
                     using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
                     {
                         conn.Open();
@@ -3051,41 +3290,53 @@ namespace WinFormsApp1
                         }
                     }
 
-                    // 2. Procesar DataTable directamente en RAM
+                    // 3. Procesar DataTable directamente en RAM con Lógica de Negocio
                     foreach (DataRow row in dtExcelFase4Completo.Rows)
                     {
-                        string itemCode = row["ItemCode"].ToString();
-                        string serieSap = row["SerieSAP"].ToString();
-                        string serieFisico = row["SerieFisico"].ToString();
-                        string comentario = row["ComentarioExcel"].ToString().ToUpper();
+                        string itemCode = row["ItemCode"].ToString().Trim();
+                        string serieSap = row["SerieSAP"].ToString().Trim();
+                        string serieFisico = row["SerieFisico"].ToString().Trim();
 
                         if (string.IsNullOrEmpty(itemCode)) continue;
 
-                        if (comentario == "CAMBIAR SERIE")
+                        // LÓGICA INTELIGENTE: Deducimos la acción comparando las series
+                        bool esCambioDeSerie = !serieSap.Equals(serieFisico, StringComparison.OrdinalIgnoreCase);
+
+                        if (esCambioDeSerie)
                         {
+                            // Validamos si la serie origen que reporta el Excel existe en SAP
                             if (!dicSeriesSAP.ContainsKey($"{itemCode}|{serieSap}"))
                             {
                                 row["EstadoValidacion"] = "ERROR: Origen no existe";
                                 erroresDetectados++;
                             }
-                            else if (dicSeriesSAP.ContainsKey($"{itemCode}|{serieFisico}"))
-                            {
-                                row["EstadoValidacion"] = "ERROR: Destino ya existe";
-                                erroresDetectados++;
-                            }
                             else
                             {
-                                row["EstadoValidacion"] = "OK - Listo para Actualizar";
-                                row["SysNumber"] = dicSeriesSAP[$"{itemCode}|{serieSap}"];
-                                listosParaActualizar++;
+                                // ¿La nueva serie física ya la tiene otra máquina en SAP?
+                                if (dicSeriesSAP.ContainsKey($"{itemCode}|{serieFisico}"))
+                                {
+                                    // ¡FANTASMA DETECTADO! 
+                                    row["EstadoValidacion"] = "COLISIÓN: Fantasma Detectado";
+                                    // Atrapamos ambos IDs para el botón de Actualización
+                                    row["SysNumber"] = dicSeriesSAP[$"{itemCode}|{serieSap}"];       // La máquina real a actualizar
+                                    row["SysNumberFantasma"] = dicSeriesSAP[$"{itemCode}|{serieFisico}"]; // La máquina a renombrar con "-L1"
+                                    fantasmasDetectados++;
+                                }
+                                else
+                                {
+                                    // VÍA LIBRE: Actualización limpia
+                                    row["EstadoValidacion"] = "OK - Listo para Actualizar";
+                                    row["SysNumber"] = dicSeriesSAP[$"{itemCode}|{serieSap}"];
+                                    listosParaActualizar++;
+                                }
                             }
                         }
-                        else if (comentario == "SERIE OK")
+                        else // La serie SAP es igual a la serie Física
                         {
                             if (dicSeriesSAP.ContainsKey($"{itemCode}|{serieFisico}"))
                             {
                                 row["EstadoValidacion"] = "OK - Verificado en SAP";
-                                seriesOkReales++; // EL CONTADOR AHORA FUNCIONA
+                                seriesOkReales++;
                             }
                             else
                             {
@@ -3096,39 +3347,47 @@ namespace WinFormsApp1
                     }
                 });
 
-                // 3. Forzar refresco visual masivo (DataBinding)
+                // 4. Forzar refresco visual masivo
                 f4_dgv.Refresh();
 
-                // Opcional: Colorear la grilla post-proceso
+                // 5. Colorear la grilla post-proceso
                 foreach (DataGridViewRow row in f4_dgv.Rows)
                 {
                     string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+
                     if (estado.StartsWith("OK - L")) row.DefaultCellStyle.BackColor = Color.LightGreen;
+                    else if (estado.StartsWith("OK - V")) row.DefaultCellStyle.BackColor = Color.LightCyan;
+                    else if (estado.StartsWith("COLISIÓN")) row.DefaultCellStyle.BackColor = Color.Plum; // Color morado claro para fantasmas
                     else if (estado.StartsWith("ALERTA")) row.DefaultCellStyle.BackColor = Color.Orange;
                     else if (estado.StartsWith("ERROR")) row.DefaultCellStyle.BackColor = Color.LightCoral;
                 }
 
                 f4_progressBar.Style = ProgressBarStyle.Blocks;
                 f4_progressBar.Value = 100;
-                label5.Text = $"Listos: {listosParaActualizar} | Falsos OK: {falsosOkDetectados} | Errores: {erroresDetectados}";
+                label5.Text = $"Listos: {listosParaActualizar} | Fantasmas: {fantasmasDetectados} | Falsos OK: {falsosOkDetectados} | Errores: {erroresDetectados}";
 
-                // 4. RESUMEN EMERGENTE RESTAURADO
+                // 6. RESUMEN EMERGENTE TÁCTICO
                 MessageBox.Show($"¡Auditoría Completa de Inventario Finalizada!\n\n" +
                                 $"• Series listas para corregir (PATCH): {listosParaActualizar}\n" +
+                                $"• Colisiones (Fantasmas a renombrar): {fantasmasDetectados}\n" +
                                 $"• Series 'OK' reales confirmadas en SAP: {seriesOkReales}\n" +
-                                $"• Falsos 'SERIE OK' (Inventario fantasma): {falsosOkDetectados}\n" +
+                                $"• Falsos 'SERIE OK' (No existen): {falsosOkDetectados}\n" +
                                 $"• Errores lógicos detectados: {erroresDetectados}",
                                 "WMS Makita - Reporte de Auditoría", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error: " + ex.Message, "Fallo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error: " + ex.Message, "Fallo en Validación", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
                 f4_prevalidacion.Enabled = true;
                 f4_progressBar.Visible = false;
             }
+
+
+
+
         }
 
 
@@ -3142,8 +3401,9 @@ namespace WinFormsApp1
             if (dtExcelFase4Completo == null || dtExcelFase4Completo.Rows.Count == 0) return;
 
             SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Filter = "Text File|*.txt";
-            sfd.FileName = $"Log_Fase4_{DateTime.Now:yyyyMMdd_HHmmss}";
+            // MEJORA 2: Soportar CSV nativo como opción principal
+            sfd.Filter = "Archivo CSV (Excel)|*.csv|Archivo de Texto|*.txt";
+            sfd.FileName = $"Auditoria_Series_WMS_{DateTime.Now:yyyyMMdd_HHmmss}";
 
             if (sfd.ShowDialog() == DialogResult.OK)
             {
@@ -3152,23 +3412,46 @@ namespace WinFormsApp1
                     f4_exportarlog.Text = "Exportando...";
                     f4_exportarlog.Enabled = false;
 
+                    string filePath = sfd.FileName;
+                    // Determinamos el separador: punto y coma para CSV (ideal para Excel en español), tabulación para TXT
+                    bool isCsv = filePath.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+                    string separador = isCsv ? ";" : "\t";
+
                     await Task.Run(() =>
                     {
-                        using (StreamWriter sw = new StreamWriter(sfd.FileName, false, System.Text.Encoding.UTF8))
+                        using (StreamWriter sw = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
                         {
-                            sw.WriteLine("ItemCode\tSerieSAP\tSerieFisico\tEstadoValidacion");
+                            // MEJORA 1: Agregamos Almacén y Descripción a la cabecera
+                            sw.WriteLine($"ItemCode{separador}Descripcion{separador}Almacen{separador}SerieSAP{separador}SerieFisico{separador}EstadoValidacion");
+
                             foreach (DataRow row in dtExcelFase4Completo.Rows)
                             {
-                                sw.WriteLine($"{row["ItemCode"]}\t{row["SerieSAP"]}\t{row["SerieFisico"]}\t{row["EstadoValidacion"]}");
+                                // Extracción segura
+                                string itemCode = row["ItemCode"]?.ToString() ?? "";
+                                string desc = row["Descripcion"]?.ToString() ?? "";
+                                string whs = row["WhsCode"]?.ToString() ?? "";
+                                string serieSap = row["SerieSAP"]?.ToString() ?? "";
+                                string serieFisico = row["SerieFisico"]?.ToString() ?? "";
+                                string estado = row["EstadoValidacion"]?.ToString() ?? "";
+
+                                // Limpieza de seguridad: Si la descripción tiene saltos de línea o punto y coma, los quitamos para no romper el CSV
+                                desc = desc.Replace("\r", "").Replace("\n", "").Replace(";", ",");
+
+                                sw.WriteLine($"{itemCode}{separador}{desc}{separador}{whs}{separador}{serieSap}{separador}{serieFisico}{separador}{estado}");
                             }
                         }
                     });
 
-                    MessageBox.Show("Log exportado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // MEJORA 3: Abrir el archivo automáticamente al terminar
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true
+                    });
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error al guardar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error al guardar el log: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 finally
                 {
@@ -3192,7 +3475,8 @@ namespace WinFormsApp1
             // 1. Extraer datos limpios antes de abrir hilos
             var listaAProcesar = dtExcelFase4Completo.AsEnumerable()
                 .Where(r => r.Field<string>("EstadoValidacion") == "OK - Listo para Actualizar")
-                .Select(r => new {
+                .Select(r => new
+                {
                     ItemCode = r.Field<string>("ItemCode"),
                     SerieFisico = r.Field<string>("SerieFisico"),
                     SysNumber = r.Field<int>("SysNumber"),
@@ -3263,7 +3547,8 @@ namespace WinFormsApp1
                             int current = System.Threading.Interlocked.Increment(ref procesadas);
                             if (current % 10 == 0 || current == f4_progressBar.Maximum) // Evita saturar la UI
                             {
-                                Invoke(new Action(() => {
+                                Invoke(new Action(() =>
+                                {
                                     f4_progressBar.Value = current;
                                     label5.Text = $"Actualizando: {current} de {listaAProcesar.Count}";
                                 }));
@@ -3299,6 +3584,522 @@ namespace WinFormsApp1
 
         private void button5_Click(object sender, EventArgs e)
         {
+
+        }
+
+        private async void f4_prevalidacion_2_Click(object sender, EventArgs e)
+        {
+            if (dtExcelFase4Completo == null || dtExcelFase4Completo.Rows.Count == 0) return;
+
+            f4_prevalidacion_2.Enabled = false;
+            label5.Text = "Descargando inventario por bodegas (V2)...";
+            f4_progressBar.Style = ProgressBarStyle.Marquee;
+            f4_progressBar.Visible = true;
+
+            // 1. Aseguramos que existan las columnas del motor interno
+            if (!dtExcelFase4Completo.Columns.Contains("SysNumber"))
+                dtExcelFase4Completo.Columns.Add("SysNumber", typeof(int));
+
+            if (!dtExcelFase4Completo.Columns.Contains("SysNumberFantasma"))
+                dtExcelFase4Completo.Columns.Add("SysNumberFantasma", typeof(int));
+
+            // ==========================================================
+            // ESTRUCTURAS EN RAM (EL CEREBRO DE LA V2)
+            // ==========================================================
+            // Diccionario Global: Llave = "ItemCode|Serie" -> Valor = SysNumber
+            var dicSeriesGlobal = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            // "Bolsa" de IDs por Bodega: Llave = "ItemCode|WhsCode" -> Valor = Lista de SysNumbers disponibles
+            var bolsaSeriesPorBodega = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+
+            // Consulta SQL de HANA: Cruza OSRN (Maestro) con OSRQ (Stock por Bodega)
+            string queryInventario = @"
+        SELECT 
+            T0.""ItemCode"", 
+            T0.""DistNumber"", 
+            T0.""AbsEntry"",
+            T1.""WhsCode""
+        FROM OSRN T0
+        INNER JOIN OSRQ T1 ON T0.""ItemCode"" = T1.""ItemCode"" AND T0.""SysNumber"" = T1.""SysNumber""
+        WHERE T1.""Quantity"" > 0";
+
+            int asignacionesExitosas = 0;
+            int fantasmasDetectados = 0;
+            int faltaStockEnSAP = 0;
+            int seriesYaCorrectas = 0;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    // ==========================================================
+                    // FASE A: DESCARGAR RADIOGRAFÍA DESDE SAP HANA
+                    // ==========================================================
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryInventario, conn))
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string itemCode = reader.GetString(0);
+                                string serie = reader.GetString(1);
+                                int sysNumber = reader.GetInt32(2);
+                                string whsCode = reader.GetString(3);
+
+                                // Llenar buscador global
+                                dicSeriesGlobal[$"{itemCode}|{serie}"] = sysNumber;
+
+                                // Llenar la "Bolsa" de la bodega
+                                string llaveBodega = $"{itemCode}|{whsCode}";
+                                if (!bolsaSeriesPorBodega.ContainsKey(llaveBodega))
+                                {
+                                    bolsaSeriesPorBodega[llaveBodega] = new List<int>();
+                                }
+                                bolsaSeriesPorBodega[llaveBodega].Add(sysNumber);
+                            }
+                        }
+                    }
+
+                    // ==========================================================
+                    // FASE B: PROCESAMIENTO DEL EXCEL (DIAGNÓSTICO V2)
+                    // ==========================================================
+                    foreach (DataRow row in dtExcelFase4Completo.Rows)
+                    {
+                        string itemCode = row["ItemCode"].ToString().Trim();
+                        string serieFisico = row["SerieFisico"].ToString().Trim();
+                        string whsCodeExcel = row["WhsCode"].ToString().Trim();
+
+                        if (string.IsNullOrEmpty(itemCode)) continue;
+
+                        string llaveGlobal = $"{itemCode}|{serieFisico}";
+                        string llaveBodega = $"{itemCode}|{whsCodeExcel}";
+                        bool necesitaAsignacion = true;
+
+                        // REGLA 1: ¿La serie física que pide el Excel ya existe en SAP?
+                        if (dicSeriesGlobal.ContainsKey(llaveGlobal))
+                        {
+                            int sysNumberExistente = dicSeriesGlobal[llaveGlobal];
+
+                            // ¿Está en la MISMA bodega que dice el Excel?
+                            if (bolsaSeriesPorBodega.ContainsKey(llaveBodega) && bolsaSeriesPorBodega[llaveBodega].Contains(sysNumberExistente))
+                            {
+                                row["EstadoValidacion"] = "OK - Verificado en SAP";
+                                row["SysNumber"] = sysNumberExistente;
+                                seriesYaCorrectas++;
+
+                                // Retiramos este SysNumber de la bolsa para NO sobrescribirlo
+                                bolsaSeriesPorBodega[llaveBodega].Remove(sysNumberExistente);
+                                necesitaAsignacion = false; // Ya tiene su espacio, no necesita buscar uno nuevo
+                            }
+                            else
+                            {
+                                // ¡FANTASMA DETECTADO! Existe, pero está perdido en OTRA bodega.
+                                // Lo atrapamos para renombrarlo con "-L1" después.
+                                row["SysNumberFantasma"] = sysNumberExistente;
+                                fantasmasDetectados++;
+                                // Sigue necesitando asignación (necesitamos un espacio en la bodega actual)
+                            }
+                        }
+
+                        // REGLA 2: ASIGNACIÓN DE "ESPACIO" (Trueque de serie)
+                        if (necesitaAsignacion)
+                        {
+                            // Verificamos si en SAP aún quedan IDs disponibles para ese artículo en esa bodega
+                            if (bolsaSeriesPorBodega.ContainsKey(llaveBodega) && bolsaSeriesPorBodega[llaveBodega].Count > 0)
+                            {
+                                // Sacamos el primer ID viejo/chatarra disponible
+                                int sysNumberDisponible = bolsaSeriesPorBodega[llaveBodega][0];
+                                bolsaSeriesPorBodega[llaveBodega].RemoveAt(0); // Lo retiramos de la bolsa
+
+                                row["SysNumber"] = sysNumberDisponible;
+
+                                if (row.IsNull("SysNumberFantasma") || Convert.ToInt32(row["SysNumberFantasma"]) == 0)
+                                {
+                                    row["EstadoValidacion"] = "OK - Listo para Actualizar";
+                                }
+                                else
+                                {
+                                    row["EstadoValidacion"] = "COLISIÓN: Fantasma Detectado";
+                                }
+                                asignacionesExitosas++;
+                            }
+                            else
+                            {
+                                // MATEMÁTICA PURA: El Excel pide meter una máquina, pero SAP ya no tiene espacios en esa bodega.
+                                row["EstadoValidacion"] = "ERROR: Falta Stock en SAP";
+                                faltaStockEnSAP++;
+                            }
+                        }
+                    }
+                });
+
+                // ==========================================================
+                // FASE C: ACTUALIZACIÓN VISUAL Y REPORTES
+                // ==========================================================
+                f4_dgv.Refresh();
+
+                // Coloreo Táctico de la grilla
+                foreach (DataGridViewRow row in f4_dgv.Rows)
+                {
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+
+                    if (estado.StartsWith("OK - L")) row.DefaultCellStyle.BackColor = Color.LightGreen;
+                    else if (estado.StartsWith("OK - V")) row.DefaultCellStyle.BackColor = Color.LightCyan;
+                    else if (estado.StartsWith("COLISIÓN")) row.DefaultCellStyle.BackColor = Color.Plum; // Morado claro
+                    else if (estado.StartsWith("ERROR")) row.DefaultCellStyle.BackColor = Color.LightCoral;
+                }
+
+                f4_progressBar.Style = ProgressBarStyle.Blocks;
+                f4_progressBar.Value = 100;
+
+                MessageBox.Show($"¡Auditoría V2 (Ciega por Bodega) Finalizada!\n\n" +
+                                $"• Asignaciones listas (PATCH): {asignacionesExitosas}\n" +
+                                $"• Fantasmas a renombrar (-L1): {fantasmasDetectados}\n" +
+                                $"• Series que ya estaban correctas: {seriesYaCorrectas}\n" +
+                                $"• Errores (Excel excede stock SAP): {faltaStockEnSAP}",
+                                "WMS Makita - Reporte V2", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error en validación V2: " + ex.Message, "Fallo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                label5.Text = $"Listos: {asignacionesExitosas} | Fantasmas: {fantasmasDetectados} | Correctos: {seriesYaCorrectas} | Errores: {faltaStockEnSAP}";
+                f4_prevalidacion_2.Enabled = true;
+                f4_progressBar.Visible = false;
+            }
+
+
+        }
+
+        private async void button14_Click(object sender, EventArgs e)
+        {
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el archivo de Series V2 (Solo Serie Física)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    f4_importarExcel.Enabled = false;
+                    label5.Text = "Leyendo Excel masivo V2 y numerando filas...";
+                    f4_progressBar.Style = ProgressBarStyle.Marquee;
+                    f4_progressBar.Visible = true;
+
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // ==========================================================
+                    // HILO EN SEGUNDO PLANO: Lectura a máxima velocidad
+                    // ==========================================================
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0];
+
+                                // Instanciamos la tabla estructural global del sistema
+                                dtExcelFase4Completo = new DataTable();
+
+                                // NUEVO: Agregamos la columna de Contador al inicio
+                                dtExcelFase4Completo.Columns.Add("Nro", typeof(int));
+
+                                dtExcelFase4Completo.Columns.Add("ItemCode", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("Descripcion", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("SerieSAP", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("SerieFisico", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("WhsCode", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("WhsName", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("EstadoValidacion", typeof(string));
+                                dtExcelFase4Completo.Columns.Add("SysNumber", typeof(int));
+
+                                int contadorFila = 1; // Iniciamos el contador de líneas
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    // Extraemos con el FORMATO V2 (A=0, B=1, C=2, D=3, E=4)
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string descripcion = row[1]?.ToString().Trim() ?? "";
+                                    string serieFisico = row[2]?.ToString().Trim() ?? "";
+                                    string whsCode = row[3]?.ToString().Trim() ?? "";
+
+                                    string whsName = row.Table.Columns.Count > 4 ? row[4]?.ToString().Trim() ?? "" : "";
+                                    string serieSap = "";
+
+                                    // Filtro anti-basura de Excel (Saltar filas vacías)
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(serieFisico))
+                                        continue;
+
+                                    // Inyectamos a la RAM incluyendo el contador
+                                    dtExcelFase4Completo.Rows.Add(
+                                        contadorFila, // Inyectamos el número actual
+                                        itemCode,
+                                        descripcion,
+                                        serieSap,
+                                        serieFisico,
+                                        whsCode,
+                                        whsName,
+                                        "Pendiente Validación (V2)",
+                                        0
+                                    );
+
+                                    contadorFila++; // Aumentamos en 1 para la siguiente fila
+                                }
+                            }
+                        }
+                    });
+
+                    // ==========================================================
+                    // VUELTA AL HILO PRINCIPAL: Inyección a la grilla (DataBinding)
+                    // ==========================================================
+                    f4_dgv.DataSource = null;
+                    f4_dgv.Columns.Clear();
+                    f4_dgv.DataSource = dtExcelFase4Completo;
+
+                    // Formateo de las cabeceras visuales
+                    f4_dgv.Columns["Nro"].HeaderText = "#";
+                    f4_dgv.Columns["Nro"].Width = 40; // Ancho pequeño solo para el número
+                    f4_dgv.Columns["Nro"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter; // Centrado
+
+                    f4_dgv.Columns["ItemCode"].HeaderText = "Nro Artículo";
+                    f4_dgv.Columns["Descripcion"].HeaderText = "Descripción";
+                    f4_dgv.Columns["SerieSAP"].HeaderText = "Serie SAP (V2)";
+                    f4_dgv.Columns["SerieFisico"].HeaderText = "Serie Física";
+                    f4_dgv.Columns["WhsCode"].HeaderText = "Cód. Almacén";
+                    f4_dgv.Columns["WhsName"].HeaderText = "Almacén";
+
+                    f4_dgv.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    f4_dgv.Columns["EstadoValidacion"].Width = 220;
+
+                    // Ocultamos la columna del sistema
+                    f4_dgv.Columns["SysNumber"].Visible = false;
+
+                    // Restauramos UI
+                    f4_progressBar.Style = ProgressBarStyle.Blocks;
+                    f4_progressBar.Value = 100;
+                    label5.Text = $"Registros V2 importados: {dtExcelFase4Completo.Rows.Count:N0}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel V2: " + ex.Message, "Fallo de Importación", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    label5.Text = "Error en importación";
+                }
+                finally
+                {
+                    f4_importarExcel.Enabled = true;
+                    f4_progressBar.Visible = false;
+                }
+            }
+
+
+
+
+
+
+        }
+
+        private async void f4_actualizarmasiva_2_Click(object sender, EventArgs e)
+        {
+            // =========================================================================
+            // 1. FRENO DE SEGURIDAD (MODO SIMULACIÓN)
+            // Cambia esto a 'false' SOLO cuando estés 100% seguro de inyectar a SAP
+            // =========================================================================
+            
+            ////modo prueba _ modo simulacion
+            //bool modoSimulacion = true;
+
+            // insert a produccion
+            bool modoSimulacion = false;
+
+
+
+            // Extraemos solo los que están listos o son colisiones (fantasmas)
+            var listaAProcesar = dtExcelFase4Completo.AsEnumerable()
+                .Where(r => r.Field<string>("EstadoValidacion") == "OK - Listo para Actualizar" ||
+                            r.Field<string>("EstadoValidacion") == "COLISIÓN: Fantasma Detectado")
+                .Select(r => new {
+                    NroFila = r.Table.Columns.Contains("Nro") && !r.IsNull("Nro") ? r.Field<int>("Nro") : 0,
+                    ItemCode = r.Field<string>("ItemCode"),
+                    SerieFisico = r.Field<string>("SerieFisico"),
+                    SysNumber = r.Field<int>("SysNumber"),
+                    SysNumberFantasma = r.Table.Columns.Contains("SysNumberFantasma") && !r.IsNull("SysNumberFantasma") ? r.Field<int>("SysNumberFantasma") : 0,
+                    Estado = r.Field<string>("EstadoValidacion"),
+                    Fila = r
+                }).ToList();
+
+            if (listaAProcesar.Count == 0)
+            {
+                MessageBox.Show("No hay registros pendientes para actualizar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            f4_actualizarmasiva_2.Enabled = false;
+            f4_progressBar.Visible = true;
+            f4_progressBar.Maximum = listaAProcesar.Count;
+            f4_progressBar.Value = 0;
+
+            string prefijoEstado = modoSimulacion ? "[SIMULACIÓN] " : "";
+            label5.Text = $"{prefijoEstado}Iniciando inyección de {listaAProcesar.Count} registros...";
+
+            int actualizadas = 0, errores = 0, procesadas = 0;
+            var logPatch = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+            // 2. CONTROL DE TASA LIMITADO A 5 HILOS (Protección de Service Layer)
+            using (SemaphoreSlim semaphore = new SemaphoreSlim(5))
+            {
+                var tareas = new List<Task>();
+
+                foreach (var item in listaAProcesar)
+                {
+                    await semaphore.WaitAsync();
+
+                    tareas.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // ==========================================
+                            // CASO A: DOBLE DISPARO (CAZAR AL FANTASMA)
+                            // ==========================================
+                            if (item.SysNumberFantasma > 0)
+                            {
+                                string endpointFantasma = $"SerialNumberDetails({item.SysNumberFantasma})";
+                                string jsonFantasma = $@"{{ ""SerialNumber"": ""{item.SerieFisico}-L1"" }}";
+
+                                if (modoSimulacion)
+                                {
+                                    logPatch.Add($"SIMULACIÓN (Fila {item.NroFila}): Renombrando Fantasma -> {endpointFantasma} | Payload: {jsonFantasma}");
+                                    await Task.Delay(10); // Simulamos tiempo de red
+                                }
+                                else
+                                {
+                                    var contentFantasma = new StringContent(jsonFantasma, System.Text.Encoding.UTF8, "application/json");
+                                    var responseFantasma = await client.PatchAsync(endpointFantasma, contentFantasma);
+
+                                    if (!responseFantasma.IsSuccessStatusCode)
+                                    {
+                                        string errF = await responseFantasma.Content.ReadAsStringAsync();
+                                        throw new Exception($"Fallo en Fantasma. HTTP {(int)responseFantasma.StatusCode}. Detalles: {errF}");
+                                    }
+                                    await Task.Delay(50); // Respiración para el Service Layer entre doble parche
+                                }
+                            }
+
+                            // ==========================================
+                            // CASO B: ACTUALIZACIÓN DE LA MÁQUINA REAL
+                            // ==========================================
+                            // Uso de ruta directa por AbsEntry (Evita problemas de caracteres en URLs)
+                            string endpointReal = $"SerialNumberDetails({item.SysNumber})";
+                            string jsonReal = $@"{{ ""SerialNumber"": ""{item.SerieFisico}"" }}";
+
+                            if (modoSimulacion)
+                            {
+                                logPatch.Add($"SIMULACIÓN (Fila {item.NroFila}): Actualizando Serie Real -> {endpointReal} | Payload: {jsonReal}");
+                                System.Threading.Interlocked.Increment(ref actualizadas);
+
+                                Invoke(new Action(() => {
+                                    item.Fila["EstadoValidacion"] = "SIMULADO OK";
+                                }));
+                                await Task.Delay(10);
+                            }
+                            else
+                            {
+                                var contentReal = new StringContent(jsonReal, System.Text.Encoding.UTF8, "application/json");
+                                var responseReal = await client.PatchAsync(endpointReal, contentReal);
+
+                                if (responseReal.IsSuccessStatusCode)
+                                {
+                                    System.Threading.Interlocked.Increment(ref actualizadas);
+                                    Invoke(new Action(() => {
+                                        item.Fila["EstadoValidacion"] = "ACTUALIZADO EN SAP";
+                                    }));
+                                }
+                                else
+                                {
+                                    string err = await responseReal.Content.ReadAsStringAsync();
+                                    throw new Exception($"Fallo en Serie Real. JSON: {jsonReal}. Detalles: {err}");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // 3. LOG DE AUDITORÍA EXTENDIDO
+                            logPatch.Add($"[{DateTime.Now:HH:mm:ss}] ERROR Fila {item.NroFila} | Artículo {item.ItemCode}: {ex.Message}");
+                            System.Threading.Interlocked.Increment(ref errores);
+
+                            Invoke(new Action(() => {
+                                item.Fila["EstadoValidacion"] = "ERROR AL INYECTAR";
+                            }));
+                        }
+                        finally
+                        {
+                            int current = System.Threading.Interlocked.Increment(ref procesadas);
+                            if (current % 5 == 0 || current == f4_progressBar.Maximum)
+                            {
+                                Invoke(new Action(() => {
+                                    f4_progressBar.Value = current;
+                                    label5.Text = $"{prefijoEstado}Procesando: {current} de {listaAProcesar.Count}";
+                                }));
+                            }
+                            semaphore.Release();
+                        }
+                    }));
+                }
+                await Task.WhenAll(tareas);
+            }
+
+            // 4. REPORTES FINALES
+            f4_dgv.Refresh();
+            f4_progressBar.Visible = false;
+            f4_actualizarmasiva_2.Enabled = true;
+
+            // Coloreo post-actualización
+            foreach (DataGridViewRow row in f4_dgv.Rows)
+            {
+                string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+                if (estado == "SIMULADO OK" || estado == "ACTUALIZADO EN SAP")
+                    row.DefaultCellStyle.BackColor = Color.LimeGreen;
+                else if (estado == "ERROR AL INYECTAR")
+                    row.DefaultCellStyle.BackColor = Color.Red;
+            }
+
+            // Generación del Log si hay errores o estamos en modo simulación
+            if (errores > 0 || modoSimulacion)
+            {
+                string sufijo = modoSimulacion ? "SIMULACION" : "ERRORES";
+                string rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_Patch_{sufijo}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logPatch);
+
+                if (modoSimulacion)
+                {
+                    MessageBox.Show($"Simulación Finalizada.\n\nSimulados con éxito: {actualizadas}\n\nSe ha generado un archivo en tu escritorio para que audites cómo se verán los JSON que se enviarán a SAP.",
+                        "Modo Simulación (Dry Run)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+                }
+                else
+                {
+                    MessageBox.Show($"Actualización finalizada con observaciones.\n\nÉxitos: {actualizadas}\nFallos: {errores}\n\nRevisa el log de errores en tu Escritorio.",
+                        "WMS Makita - Alerta SAP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show($"¡Inyección Finalizada con Éxito!\n\nSe actualizaron {actualizadas} series reales en SAP.",
+                    "WMS Makita - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+
 
         }
     }

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj": {}
+    "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj": {}
   },
   "projects": {
-    "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj": {
+    "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
+        "projectUniqueName": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
         "projectName": "WinFormsApp1",
-        "projectPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
+        "projectPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\WinFormsApp1.csproj",
         "packagesPath": "C:\\Users\\SYS03\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\U_C_UBICACION__SW\\WinFormsApp1\\WinFormsApp1\\obj\\",
+        "outputPath": "C:\\Users\\SISTEMAS2\\Documents\\JSOLIS\\DESARROLLO\\3_WMS_UTILITARIO\\WMS_WINFORM_UTILITARIO\\WinFormsApp1\\WinFormsApp1\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
