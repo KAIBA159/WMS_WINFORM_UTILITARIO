@@ -77,6 +77,15 @@
             f4_prevalidacion = new Button();
             f4_importarExcel = new Button();
             f4_dgv = new DataGridView();
+            tabPage5 = new TabPage();
+            f0_logexportar = new Button();
+            f0_progressBar4 = new ProgressBar();
+            f0_entradamasiva = new Button();
+            f0_salidamasiva = new Button();
+            label8 = new Label();
+            f0_prevalidar = new Button();
+            f0_btnImportaexceldata = new Button();
+            f0_dgv1 = new DataGridView();
             textBox1 = new TextBox();
             button1 = new Button();
             label6 = new Label();
@@ -93,6 +102,8 @@
             ((System.ComponentModel.ISupportInitialize)dgv_x).BeginInit();
             tabPage4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)f4_dgv).BeginInit();
+            tabPage5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)f0_dgv1).BeginInit();
             SuspendLayout();
             // 
             // lblbdcon
@@ -119,6 +130,7 @@
             tabControl1.Controls.Add(tabPage2);
             tabControl1.Controls.Add(tabPage3);
             tabControl1.Controls.Add(tabPage4);
+            tabControl1.Controls.Add(tabPage5);
             tabControl1.Location = new Point(12, 78);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -194,7 +206,7 @@
             button4.Name = "button4";
             button4.Size = new Size(330, 23);
             button4.TabIndex = 34;
-            button4.Text = "Actualizar/Crear en BD";
+            button4.Text = "6_Actualizar/Crear en BD";
             button4.UseVisualStyleBackColor = true;
             button4.Click += button4_Click_1;
             // 
@@ -231,7 +243,7 @@
             button3.Name = "button3";
             button3.Size = new Size(330, 23);
             button3.TabIndex = 30;
-            button3.Text = "Importar Ubicaciones Finales/Reales";
+            button3.Text = "3_Importar Ubicaciones Finales/Reales";
             button3.UseVisualStyleBackColor = true;
             button3.Click += button3_Click_1;
             // 
@@ -259,7 +271,7 @@
             button2.Name = "button2";
             button2.Size = new Size(330, 23);
             button2.TabIndex = 27;
-            button2.Text = "Consulta Ubicaciones en BD";
+            button2.Text = "2_Consulta Ubicaciones en BD";
             button2.UseVisualStyleBackColor = true;
             button2.Click += button2_Click_1;
             // 
@@ -291,7 +303,7 @@
             button10.Name = "button10";
             button10.Size = new Size(216, 23);
             button10.TabIndex = 23;
-            button10.Text = "Activar Articulos";
+            button10.Text = "4_Activar Articulos";
             button10.UseVisualStyleBackColor = true;
             button10.Click += button10_Click_1;
             // 
@@ -301,7 +313,7 @@
             button8.Name = "button8";
             button8.Size = new Size(202, 23);
             button8.TabIndex = 22;
-            button8.Text = "Reubicacion Stock";
+            button8.Text = "5_Reubicacion Stock";
             button8.UseVisualStyleBackColor = true;
             button8.Click += button8_Click_1;
             // 
@@ -311,7 +323,7 @@
             button7.Name = "button7";
             button7.Size = new Size(172, 23);
             button7.TabIndex = 17;
-            button7.Text = "Consular UbicacionStock";
+            button7.Text = "1_Consular UbicacionStock";
             button7.UseVisualStyleBackColor = true;
             button7.Click += button7_Click_1;
             // 
@@ -588,6 +600,96 @@
             f4_dgv.Size = new Size(816, 226);
             f4_dgv.TabIndex = 0;
             // 
+            // tabPage5
+            // 
+            tabPage5.Controls.Add(f0_logexportar);
+            tabPage5.Controls.Add(f0_progressBar4);
+            tabPage5.Controls.Add(f0_entradamasiva);
+            tabPage5.Controls.Add(f0_salidamasiva);
+            tabPage5.Controls.Add(label8);
+            tabPage5.Controls.Add(f0_prevalidar);
+            tabPage5.Controls.Add(f0_btnImportaexceldata);
+            tabPage5.Controls.Add(f0_dgv1);
+            tabPage5.Location = new Point(4, 24);
+            tabPage5.Name = "tabPage5";
+            tabPage5.Size = new Size(1051, 646);
+            tabPage5.TabIndex = 4;
+            tabPage5.Text = "Fase0";
+            tabPage5.UseVisualStyleBackColor = true;
+            // 
+            // f0_logexportar
+            // 
+            f0_logexportar.Location = new Point(417, 234);
+            f0_logexportar.Name = "f0_logexportar";
+            f0_logexportar.Size = new Size(93, 23);
+            f0_logexportar.TabIndex = 7;
+            f0_logexportar.Text = "Log-exportar";
+            f0_logexportar.UseVisualStyleBackColor = true;
+            // 
+            // f0_progressBar4
+            // 
+            f0_progressBar4.Location = new Point(118, 272);
+            f0_progressBar4.Name = "f0_progressBar4";
+            f0_progressBar4.Size = new Size(602, 23);
+            f0_progressBar4.TabIndex = 6;
+            // 
+            // f0_entradamasiva
+            // 
+            f0_entradamasiva.Location = new Point(619, 234);
+            f0_entradamasiva.Name = "f0_entradamasiva";
+            f0_entradamasiva.Size = new Size(101, 23);
+            f0_entradamasiva.TabIndex = 5;
+            f0_entradamasiva.Text = "EntradaMasiva";
+            f0_entradamasiva.UseVisualStyleBackColor = true;
+            f0_entradamasiva.Click += f0_entradamasiva_Click;
+            // 
+            // f0_salidamasiva
+            // 
+            f0_salidamasiva.Location = new Point(209, 234);
+            f0_salidamasiva.Name = "f0_salidamasiva";
+            f0_salidamasiva.Size = new Size(99, 23);
+            f0_salidamasiva.TabIndex = 4;
+            f0_salidamasiva.Text = "SalidaMasiva";
+            f0_salidamasiva.UseVisualStyleBackColor = true;
+            f0_salidamasiva.Click += f0_salidamasiva_Click;
+            // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new Point(199, 10);
+            label8.Name = "label8";
+            label8.Size = new Size(299, 15);
+            label8.TabIndex = 3;
+            label8.Text = "Activacion masiva de Lotes - Salidas e Ingresos masivos";
+            // 
+            // f0_prevalidar
+            // 
+            f0_prevalidar.Location = new Point(22, 234);
+            f0_prevalidar.Name = "f0_prevalidar";
+            f0_prevalidar.Size = new Size(109, 23);
+            f0_prevalidar.TabIndex = 2;
+            f0_prevalidar.Text = "pre-validar";
+            f0_prevalidar.UseVisualStyleBackColor = true;
+            f0_prevalidar.Click += f0_prevalidar_Click;
+            // 
+            // f0_btnImportaexceldata
+            // 
+            f0_btnImportaexceldata.Location = new Point(22, 37);
+            f0_btnImportaexceldata.Name = "f0_btnImportaexceldata";
+            f0_btnImportaexceldata.Size = new Size(165, 23);
+            f0_btnImportaexceldata.TabIndex = 1;
+            f0_btnImportaexceldata.Text = "Importar_excel_Data";
+            f0_btnImportaexceldata.UseVisualStyleBackColor = true;
+            f0_btnImportaexceldata.Click += f0_btnImportaexceldata_Click;
+            // 
+            // f0_dgv1
+            // 
+            f0_dgv1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            f0_dgv1.Location = new Point(22, 66);
+            f0_dgv1.Name = "f0_dgv1";
+            f0_dgv1.Size = new Size(1007, 162);
+            f0_dgv1.TabIndex = 0;
+            // 
             // textBox1
             // 
             textBox1.Location = new Point(16, 6);
@@ -628,7 +730,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new Size(1284, 749);
+            ClientSize = new Size(1184, 749);
             Controls.Add(label7);
             Controls.Add(label6);
             Controls.Add(textBox1);
@@ -637,6 +739,7 @@
             Controls.Add(lblUsuario);
             Controls.Add(lblbdcon);
             Name = "lblBaseDatos";
+            SizeGripStyle = SizeGripStyle.Hide;
             Text = "Form1";
             Load += Form1_Load;
             tabControl1.ResumeLayout(false);
@@ -655,6 +758,9 @@
             tabPage4.ResumeLayout(false);
             tabPage4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)f4_dgv).EndInit();
+            tabPage5.ResumeLayout(false);
+            tabPage5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)f0_dgv1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -713,5 +819,14 @@
         private Button f4_actualizarmasiva_2;
         private Button f4_prevalidacion_2;
         private Button f4_importarExcel_2;
+        private TabPage tabPage5;
+        private Button f0_btnImportaexceldata;
+        private DataGridView f0_dgv1;
+        private ProgressBar f0_progressBar4;
+        private Button f0_entradamasiva;
+        private Button f0_salidamasiva;
+        private Label label8;
+        private Button f0_prevalidar;
+        private Button f0_logexportar;
     }
 }

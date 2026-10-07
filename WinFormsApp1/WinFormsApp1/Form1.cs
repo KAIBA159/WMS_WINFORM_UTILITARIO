@@ -18,6 +18,8 @@ namespace WinFormsApp1
         private int totalLineasExitosas = 0;
         private int totalLineasFallidas = 0;
 
+
+
         //string miBaseDatos = "SBO_MAKITA_PE"; // La BD de la sociedad
         //string miUsuario = "manager";
 
@@ -45,6 +47,8 @@ namespace WinFormsApp1
         // ==========================================
         private DataTable dtExcelFase4Completo;
 
+        public DataTable dtExcelFase0;
+
 
         private string sessionToken = "";
 
@@ -57,7 +61,7 @@ namespace WinFormsApp1
         //private readonly string dbSchemaGlobal = "SBO_MAKITA_20260717";
         //private readonly string dbSchemaGlobal = "SBO_MAKITA_WMS_080926_1";
 
-        private readonly string dbSchemaGlobal = "SBO_MAKITA_PE";
+        private readonly string dbSchemaGlobal = "TEST_SBO_MAKITA_PE_06102026";
 
 
         // Cadena de conexión pre-ensamblada lista para usarse
@@ -70,7 +74,7 @@ namespace WinFormsApp1
         // ==========================================
         // VARIABLES GLOBALES DE CONEXIÓN SERVICE LAYER (SAP B1)
         // ==========================================
-        private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
+        private readonly string slBaseDatosGlobal = "TEST_SBO_MAKITA_PE_06102026";
         //private readonly string slBaseDatosGlobal = "SBO_MAKITA_WMS_080926_1";
         private readonly string slUsuarioGlobal = "manager";
         private readonly string slClaveGlobal = "m1r1";
@@ -1283,6 +1287,7 @@ namespace WinFormsApp1
 
         private async void button10_Click_1(object sender, EventArgs e)
         {
+
             // 1. Validamos que la grilla tenga datos cargados
             DataTable dtStock = dgv3.DataSource as DataTable;
             if (dtStock == null || dtStock.Rows.Count == 0)
@@ -1298,7 +1303,7 @@ namespace WinFormsApp1
                 .ToList();
 
             button10.Enabled = false;
-            button10.Text = "Activando Masivamente...";
+            button10.Text = "Activando y Liberando Candados..."; // Refleja la doble acción
 
             // Configuración de la Barra de Progreso 2
             progressBar2.Minimum = 0;
@@ -1326,10 +1331,22 @@ namespace WinFormsApp1
                         {
                             string endpoint = $"Items('{itemCode}')";
 
-                            // CORRECCIÓN CRÍTICA: Eliminamos ValidTo para evitar validaciones de SAP
-                            // con ubicaciones por defecto inactivas. Solo enviamos el estado 'Activo'.
+                            // =====================================================================
+                            // CORRECCIÓN ESTRATÉGICA WMS:
+                            // 1. "Valid": "tYES" -> Despierta el artículo si estaba inactivo.
+                            // 2. "EnforceDefaultBin": "tNO" -> Arranca de raíz la regla del Error -10
+                            // =====================================================================
                             string jsonPatch = @"{
-                        ""Valid"": ""tYES""
+                            ""Valid"": ""tYES"",
+                            ""ItemWarehouseInfoCollection"": [
+                                {
+                                    ""WarehouseCode"": ""ALM01"",
+                                    ""DefaultBinEnforced"": ""tNO""
+                                }
+                            ]
+
+
+                       
                     }";
 
                             var content = new StringContent(jsonPatch, Encoding.UTF8, "application/json");
@@ -1344,7 +1361,7 @@ namespace WinFormsApp1
                             else
                             {
                                 string err = await response.Content.ReadAsStringAsync();
-                                logActivacion.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL ACTIVAR {itemCode} | {err}");
+                                logActivacion.Add($"[{DateTime.Now:HH:mm:ss}] ERROR AL ACTUALIZAR {itemCode} | {err}");
                                 System.Threading.Interlocked.Increment(ref errores);
                             }
                         }
@@ -1385,14 +1402,16 @@ namespace WinFormsApp1
 
             if (errores > 0)
             {
-                MessageBox.Show($"¡Proceso finalizado con observaciones!\n\nArtículos activados: {actualizados}\nErrores: {errores}\n\nRevisa el archivo de log generado en el Escritorio.",
+                MessageBox.Show($"¡Proceso finalizado con observaciones!\n\nArtículos procesados: {actualizados}\nErrores: {errores}\n\nRevisa el archivo de log generado en el Escritorio.",
                     "WMS Makita - Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show($"¡ÉXITO TOTAL!\n\nSe activaron los {actualizados} artículos limpiamente.",
+                MessageBox.Show($"¡ÉXITO TOTAL!\n\nSe activaron y liberaron de la ubicación por defecto a {actualizados} artículos limpiamente.",
                     "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+
+
         }
 
         private void button9_Click_1(object sender, EventArgs e)
@@ -1994,6 +2013,7 @@ namespace WinFormsApp1
 
         }
 
+
         private async void button4_Click_1(object sender, EventArgs e)
         {
             button4.Enabled = false;
@@ -2011,15 +2031,13 @@ namespace WinFormsApp1
             System.Collections.Concurrent.ConcurrentBag<string> logErrores = new System.Collections.Concurrent.ConcurrentBag<string>();
 
             // ====================================================================
-            // FASE 0: PRE-EXTRACCIÓN DE INTERFAZ GRÁFICA A LA MEMORIA RAM (SÚPER RÁPIDO Y SEGURO)
+            // FASE 0: PRE-EXTRACCIÓN DE INTERFAZ GRÁFICA A LA MEMORIA RAM
             // ====================================================================
             lblProgreso.Text = "Fase 0: Preparando datos en memoria...";
 
-            // 1. Cargamos HANA a la memoria (Diccionario)
             var ubicacionesHANA = new Dictionary<string, string>();
-            var estatusHANA = new Dictionary<string, string>(); // Para saber si ya está Inactivo o no en SAP
+            var estatusHANA = new Dictionary<string, string>();
 
-            // Extraemos DataTable directo en lugar de recorrer las filas visuales (asumiendo que usaste DataBinding)
             DataTable dtHana = (DataTable)dataGridView1.DataSource;
             if (dtHana != null)
             {
@@ -2031,6 +2049,7 @@ namespace WinFormsApp1
 
                     if (!string.IsNullOrEmpty(binCode))
                     {
+                        // NOTA: Aquí le quitamos los guiones al código para procesarlo más rápido
                         string binCodeLimpio = binCode.Replace("-", "").Trim();
                         ubicacionesHANA[binCodeLimpio] = absEntry;
                         estatusHANA[binCodeLimpio] = inactive;
@@ -2038,7 +2057,6 @@ namespace WinFormsApp1
                 }
             }
 
-            // 2. Cargamos Excel a la memoria (Lista de Objetos)
             var listaExcelAProcesar = new List<dynamic>();
             HashSet<string> codigosExcelLimpio = new HashSet<string>();
 
@@ -2057,8 +2075,8 @@ namespace WinFormsApp1
                     string cleanBinCode = $"{whs}{fila}{cuerpo}{piso}{fondo}";
                     codigosExcelLimpio.Add(cleanBinCode);
 
-                    // Protección de las ubicaciones de sistema
-                    if (cleanBinCode.Contains("UBICACIÓN-DE-SISTEMA") || cleanBinCode.Contains("SYSTEM") || cleanBinCode.Contains("MUELLE"))
+                    // CORRECCIÓN PREVENTIVA: Buscar la palabra sin guiones en memoria
+                    if (cleanBinCode.Contains("UBICACIÓNDESISTEMA") || cleanBinCode.Contains("SYSTEM") || cleanBinCode.Contains("MUELLE"))
                     {
                         continue;
                     }
@@ -2078,7 +2096,6 @@ namespace WinFormsApp1
 
             int totalAProcesar = listaExcelAProcesar.Count;
 
-            // Reportador de progreso seguro para hilos
             var progress = new Progress<int>(procesadas =>
             {
                 int porcentaje = totalAProcesar > 0 ? (int)((double)procesadas / totalAProcesar * 100) : 0;
@@ -2088,7 +2105,7 @@ namespace WinFormsApp1
             });
 
             // ====================================================================
-            // INICIO ESCENARIO 1 y 2: ACTUALIZAR O CREAR EN SAP (Multi-hilo sin tocar UI)
+            // INICIO ESCENARIO 1 y 2: ACTUALIZAR O CREAR EN SAP 
             // ====================================================================
             var tareas = new List<Task>();
 
@@ -2122,14 +2139,14 @@ namespace WinFormsApp1
                             {
                                 // === CREAR (POST) ===
                                 string jsonPost = $@"{{
-                            ""Warehouse"": ""{item.Whs}"",
-                            ""Sublevel1"": ""{item.Fila}"",
-                            ""Sublevel2"": ""{item.Cuerpo}"",
-                            ""Sublevel3"": ""{item.Piso}"",
-                            ""Sublevel4"": ""{item.Fondo}"",
-                            ""Inactive"": ""{item.Inactive}"",
-                            ""U_WAR_DW_TYPE_LOCATION"": ""2""
-                        }}";
+                    ""Warehouse"": ""{item.Whs}"",
+                    ""Sublevel1"": ""{item.Fila}"",
+                    ""Sublevel2"": ""{item.Cuerpo}"",
+                    ""Sublevel3"": ""{item.Piso}"",
+                    ""Sublevel4"": ""{item.Fondo}"",
+                    ""Inactive"": ""{item.Inactive}"",
+                    ""U_WAR_DW_TYPE_LOCATION"": ""2""
+                }}";
 
                                 var content = new StringContent(jsonPost, System.Text.Encoding.UTF8, "application/json");
                                 var response = await client.PostAsync("BinLocations", content);
@@ -2167,19 +2184,32 @@ namespace WinFormsApp1
 
             using (SemaphoreSlim semaforoLimpieza = new SemaphoreSlim(15))
             {
-                // Recorremos el diccionario extraído previamente, no el DataGridView
                 foreach (var kvp in ubicacionesHANA)
                 {
                     string binCodeHanaLimpio = kvp.Key;
                     string absEntryHana = kvp.Value;
                     string statusActual = estatusHANA[binCodeHanaLimpio];
 
-                    if (binCodeHanaLimpio.Contains("UBICACIÓN-DE-SISTEMA") || binCodeHanaLimpio.Contains("SYS") || binCodeHanaLimpio.Contains("MUELLE"))
+                    // =======================================================================
+                    // MEJORA 1: Restricción absoluta por almacén. 
+                    // Ignorar ubicaciones de ALM07, ALM08, ALM11, etc.
+                    // =======================================================================
+                    if (!binCodeHanaLimpio.StartsWith("ALM01"))
                     {
                         continue;
                     }
 
-                    // REGLA: Si está en HANA, pero NO está en Excel, y está ACTIVA -> ¡Inactivar!
+                    // =======================================================================
+                    // MEJORA 2: Corregir filtro de sistema (Búsqueda sin guiones)
+                    // =======================================================================
+                    if (binCodeHanaLimpio.Contains("UBICACIÓNDESISTEMA") ||
+                        binCodeHanaLimpio.Contains("SYS") ||
+                        binCodeHanaLimpio.Contains("MUELLE"))
+                    {
+                        continue;
+                    }
+
+                    // REGLA: Si es de ALM01, NO está en Excel, y está ACTIVA -> ¡Inactivar!
                     if (!codigosExcelLimpio.Contains(binCodeHanaLimpio) && statusActual == "tNO")
                     {
                         await semaforoLimpieza.WaitAsync();
@@ -2257,6 +2287,10 @@ namespace WinFormsApp1
             lblProgreso.Text = "Proceso Completado.";
             progressBar1.Value = 100;
         }
+
+
+
+
 
         private async void button1_Click_2(object sender, EventArgs e)
         {
@@ -3916,7 +3950,7 @@ namespace WinFormsApp1
             // 1. FRENO DE SEGURIDAD (MODO SIMULACIÓN)
             // Cambia esto a 'false' SOLO cuando estés 100% seguro de inyectar a SAP
             // =========================================================================
-            
+
             ////modo prueba _ modo simulacion
             //bool modoSimulacion = true;
 
@@ -3929,7 +3963,8 @@ namespace WinFormsApp1
             var listaAProcesar = dtExcelFase4Completo.AsEnumerable()
                 .Where(r => r.Field<string>("EstadoValidacion") == "OK - Listo para Actualizar" ||
                             r.Field<string>("EstadoValidacion") == "COLISIÓN: Fantasma Detectado")
-                .Select(r => new {
+                .Select(r => new
+                {
                     NroFila = r.Table.Columns.Contains("Nro") && !r.IsNull("Nro") ? r.Field<int>("Nro") : 0,
                     ItemCode = r.Field<string>("ItemCode"),
                     SerieFisico = r.Field<string>("SerieFisico"),
@@ -4008,7 +4043,8 @@ namespace WinFormsApp1
                                 logPatch.Add($"SIMULACIÓN (Fila {item.NroFila}): Actualizando Serie Real -> {endpointReal} | Payload: {jsonReal}");
                                 System.Threading.Interlocked.Increment(ref actualizadas);
 
-                                Invoke(new Action(() => {
+                                Invoke(new Action(() =>
+                                {
                                     item.Fila["EstadoValidacion"] = "SIMULADO OK";
                                 }));
                                 await Task.Delay(10);
@@ -4021,7 +4057,8 @@ namespace WinFormsApp1
                                 if (responseReal.IsSuccessStatusCode)
                                 {
                                     System.Threading.Interlocked.Increment(ref actualizadas);
-                                    Invoke(new Action(() => {
+                                    Invoke(new Action(() =>
+                                    {
                                         item.Fila["EstadoValidacion"] = "ACTUALIZADO EN SAP";
                                     }));
                                 }
@@ -4038,7 +4075,8 @@ namespace WinFormsApp1
                             logPatch.Add($"[{DateTime.Now:HH:mm:ss}] ERROR Fila {item.NroFila} | Artículo {item.ItemCode}: {ex.Message}");
                             System.Threading.Interlocked.Increment(ref errores);
 
-                            Invoke(new Action(() => {
+                            Invoke(new Action(() =>
+                            {
                                 item.Fila["EstadoValidacion"] = "ERROR AL INYECTAR";
                             }));
                         }
@@ -4047,7 +4085,8 @@ namespace WinFormsApp1
                             int current = System.Threading.Interlocked.Increment(ref procesadas);
                             if (current % 5 == 0 || current == f4_progressBar.Maximum)
                             {
-                                Invoke(new Action(() => {
+                                Invoke(new Action(() =>
+                                {
                                     f4_progressBar.Value = current;
                                     label5.Text = $"{prefijoEstado}Procesando: {current} de {listaAProcesar.Count}";
                                 }));
@@ -4098,6 +4137,884 @@ namespace WinFormsApp1
                 MessageBox.Show($"¡Inyección Finalizada con Éxito!\n\nSe actualizaron {actualizadas} series reales en SAP.",
                     "WMS Makita - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+
+
+
+        }
+
+        private async void f0_btnImportaexceldata_Click(object sender, EventArgs e)
+        {
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el archivo de Lotes (Fase 0)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    f0_btnImportaexceldata.Enabled = false;
+                    f0_progressBar4.Style = ProgressBarStyle.Marquee;
+                    f0_progressBar4.Visible = true;
+
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // HILO EN SEGUNDO PLANO: Lectura rápida para soportar +30,000 filas
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0];
+
+                                // Estructura de RAM optimizada para la Fase 0
+                                dtExcelFase0 = new DataTable();
+                                dtExcelFase0.Columns.Add("Nro", typeof(int));
+                                dtExcelFase0.Columns.Add("ItemCode", typeof(string));
+                                dtExcelFase0.Columns.Add("Descripcion", typeof(string));
+                                dtExcelFase0.Columns.Add("WhsCode", typeof(string));
+                                dtExcelFase0.Columns.Add("Ubicacion", typeof(string));
+                                dtExcelFase0.Columns.Add("Cantidad", typeof(decimal)); // Decimal para evitar errores de suma
+                                dtExcelFase0.Columns.Add("Lote", typeof(string));
+                                dtExcelFase0.Columns.Add("FechaVencimiento", typeof(string));
+                                dtExcelFase0.Columns.Add("EstadoValidacion", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    // Mapeo exacto según tu imagen de 8 columnas (A=0 ... H=7)
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string descripcion = row[1]?.ToString().Trim() ?? "";
+                                    string almacen = row[2]?.ToString().Trim() ?? "";
+                                    string ubicacion = row[3]?.ToString().Trim() ?? "";
+
+                                    // row[4] es FAMILIA -> La ignoramos intencionalmente
+
+                                    string cantidadStr = row[5]?.ToString().Trim() ?? "0";
+                                    string lote = row[6]?.ToString().Trim() ?? "";
+                                    string fechaVencStr = row[7]?.ToString().Trim() ?? "";
+
+                                    // Filtro anti-basura: si no hay código o almacén, saltamos la fila
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(almacen))
+                                        continue;
+
+                                    // Limpieza de cantidad
+                                    decimal.TryParse(cantidadStr, out decimal cantidad);
+
+                                    // Limpieza de fecha (Aseguramos el formato YYYY-MM-DD que exige SAP)
+                                    string fechaVencFormateada = "";
+                                    if (DateTime.TryParse(fechaVencStr, out DateTime dateParsed))
+                                    {
+                                        fechaVencFormateada = dateParsed.ToString("yyyy-MM-dd");
+                                    }
+
+                                    // Inyección a la matriz
+                                    dtExcelFase0.Rows.Add(
+                                        contadorFila,
+                                        itemCode,
+                                        descripcion,
+                                        almacen,
+                                        ubicacion,
+                                        cantidad,
+                                        lote,
+                                        fechaVencFormateada,
+                                        "Pendiente de Validación"
+                                    );
+
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // VUELTA AL HILO PRINCIPAL: Mostrar datos en el DataGridView
+                    f0_dgv1.DataSource = null;
+                    f0_dgv1.Columns.Clear();
+                    f0_dgv1.DataSource = dtExcelFase0;
+
+                    // Formateo visual y anchos de columna
+                    f0_dgv1.Columns["Nro"].HeaderText = "#";
+                    f0_dgv1.Columns["Nro"].Width = 40;
+                    f0_dgv1.Columns["Nro"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+                    f0_dgv1.Columns["ItemCode"].HeaderText = "Nro Artículo";
+                    f0_dgv1.Columns["Descripcion"].HeaderText = "Descripción";
+                    f0_dgv1.Columns["WhsCode"].HeaderText = "Almacén";
+                    f0_dgv1.Columns["WhsCode"].Width = 70;
+                    f0_dgv1.Columns["Ubicacion"].HeaderText = "Ubicación";
+
+                    f0_dgv1.Columns["Cantidad"].HeaderText = "Cant.";
+                    f0_dgv1.Columns["Cantidad"].Width = 60;
+                    f0_dgv1.Columns["Cantidad"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                    f0_dgv1.Columns["Lote"].HeaderText = "Lote";
+                    f0_dgv1.Columns["FechaVencimiento"].HeaderText = "Vencimiento";
+
+                    f0_dgv1.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    f0_dgv1.Columns["EstadoValidacion"].Width = 220;
+
+                    // UI feedback
+                    f0_progressBar4.Style = ProgressBarStyle.Blocks;
+                    f0_progressBar4.Value = 100;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    f0_btnImportaexceldata.Enabled = true;
+                    f0_progressBar4.Visible = false;
+                }
+            }
+
+
+        }
+
+        private async void f0_prevalidar_Click(object sender, EventArgs e)
+        {
+
+            if (dtExcelFase0 == null || dtExcelFase0.Rows.Count == 0) return;
+
+            f0_prevalidar.Enabled = false;
+            f0_progressBar4.Style = ProgressBarStyle.Marquee;
+            f0_progressBar4.Visible = true;
+
+            int errores = 0;
+            int listos = 0;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    // 1. Agrupar cantidades del Excel por Artículo y Almacén
+                    // Si el D-18699 aparece 2 veces (600 + 400), aquí se suman a 1000
+                    var excelSumaPorArticulo = dtExcelFase0.AsEnumerable()
+                        .GroupBy(r => new
+                        {
+                            ItemCode = r.Field<string>("ItemCode").Trim().ToUpper(),
+                            WhsCode = r.Field<string>("WhsCode").Trim().ToUpper()
+                        })
+                        .ToDictionary(
+                            g => $"{g.Key.ItemCode}|{g.Key.WhsCode}",
+                            g => g.Sum(r => r.Field<decimal>("Cantidad"))
+                        );
+
+                    // Obtener listas de valores únicos para consultar a SAP de golpe
+                    var distinctItems = dtExcelFase0.AsEnumerable().Select(r => r.Field<string>("ItemCode").Trim()).Distinct().ToList();
+                    var distinctBins = dtExcelFase0.AsEnumerable().Select(r => r.Field<string>("Ubicacion").Trim()).Distinct().ToList();
+
+                    // Diccionarios RAM para guardar la verdad de SAP
+                    var sapItemStatus = new Dictionary<string, string>(); // 'Y' o 'N' (Lotes activados)
+                    var sapItemStock = new Dictionary<string, decimal>(); // Stock actual en HANA
+                    var sapValidBins = new HashSet<string>(); // Ubicaciones que sí existen
+
+                    // ==========================================================
+                    // DESCARGAR RADIOGRAFÍA DE HANA (Optimizada en bloques)
+                    // ==========================================================
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+
+                        // --- CONSULTAR ARTÍCULOS Y STOCK (En bloques de 1000 para no ahogar la red) ---
+                        for (int i = 0; i < distinctItems.Count; i += 1000)
+                        {
+                            var chunk = distinctItems.Skip(i).Take(1000);
+                            string inClause = string.Join(",", chunk.Select(item => $"'{item}'"));
+
+                            string queryItems = $@"
+                        SELECT T0.""ItemCode"", T0.""ManBtchNum"", T1.""WhsCode"", T1.""OnHand""
+                        FROM OITM T0
+                        INNER JOIN OITW T1 ON T0.""ItemCode"" = T1.""ItemCode""
+                        WHERE T0.""ItemCode"" IN ({inClause})";
+
+                            using (var cmd = new System.Data.Odbc.OdbcCommand(queryItems, conn))
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                while (reader.Read())
+                                {
+                                    string itm = reader.GetString(0).ToUpper();
+                                    string isBatch = reader.GetString(1); // 'Y' (Tiene lotes) o 'N' (No tiene)
+                                    string whs = reader.GetString(2).ToUpper();
+                                    decimal stock = reader.GetDecimal(3);
+
+                                    sapItemStatus[itm] = isBatch;
+                                    sapItemStock[$"{itm}|{whs}"] = stock;
+                                }
+                            }
+                        }
+
+                        // --- CONSULTAR UBICACIONES ---
+                        for (int i = 0; i < distinctBins.Count; i += 1000)
+                        {
+                            var chunk = distinctBins.Skip(i).Take(1000);
+                            string inClause = string.Join(",", chunk.Select(b => $"'{b}'"));
+
+                            string queryBins = $@"SELECT ""BinCode"" FROM OBIN WHERE ""BinCode"" IN ({inClause})";
+                            using (var cmd = new System.Data.Odbc.OdbcCommand(queryBins, conn))
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                while (reader.Read())
+                                {
+                                    sapValidBins.Add(reader.GetString(0).ToUpper());
+                                }
+                            }
+                        }
+                    }
+
+                    // ==========================================================
+                    // CRUZAR EXCEL VS SAP (Validación Fila por Fila)
+                    // ==========================================================
+                    foreach (DataRow row in dtExcelFase0.Rows)
+                    {
+                        string itemCode = row["ItemCode"].ToString().Trim().ToUpper();
+                        string whsCode = row["WhsCode"].ToString().Trim().ToUpper();
+                        string ubicacion = row["Ubicacion"].ToString().Trim().ToUpper();
+                        string llaveStock = $"{itemCode}|{whsCode}";
+
+                        string estado = "OK - Listo para Salida";
+
+                        // Regla A: ¿La ubicación existe?
+                        if (!sapValidBins.Contains(ubicacion))
+                        {
+                            estado = $"ERROR: Ubicación {ubicacion} no existe";
+                        }
+                        // Regla B: ¿El artículo existe?
+                        else if (!sapItemStatus.ContainsKey(itemCode))
+                        {
+                            estado = "ERROR: Artículo no existe en SAP";
+                        }
+                        // Regla C: ¿Ya está activado por Lotes? (Queremos que sea 'N')
+                        else if (sapItemStatus[itemCode] == "Y")
+                        {
+                            ////estado = "ERROR: Artículo ya está gestionado por Lotes";
+
+                            //// Si ya tiene lotes, significa que ya pasó por la Fase de Vaciado (o ya venía así de SAP)
+                            //// Verificamos si su stock global es 0 para dar luz verde al ingreso.
+                            //decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
+
+                            //if (stockSap == 0)
+                            //{
+                            //    estado = "OK - LISTO PARA INGRESO (Lote Activo)";
+                            //}
+                            //else
+                            //{
+                            //    estado = $"ERROR: Artículo usa Lotes, pero tiene stock ({stockSap:N0}). Debe vaciarse primero.";
+                            //}
+
+                            decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
+
+                            if (stockSap == 0)
+                            {
+                                estado = "OK - LISTO PARA INGRESO (Lote Activo)";
+                            }
+                            else
+                            {
+                                // Lo cambiamos a "OK" para que SalidaMasiva no se bloquee y proceda con el vaciado
+                                estado = $"OK - Sinceramiento (Lote Activo | SAP: {stockSap:N0})";
+                            }
+
+
+
+                        }
+                        // Regla D: ¿El stock del Excel cuadra con SAP?
+                        else
+                        {
+                            decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
+                            decimal stockExcel = excelSumaPorArticulo.ContainsKey(llaveStock) ? excelSumaPorArticulo[llaveStock] : 0;
+
+                            if (stockSap != stockExcel)
+                            {
+                                estado = $"OK - Sinceramiento (SAP: {stockSap:N0} -> Excel: {stockExcel:N0})";
+                            }
+
+                        }
+
+                        row["EstadoValidacion"] = estado;
+                    }
+                });
+
+                // ==========================================================
+                // VUELTA AL HILO PRINCIPAL: Pintar la grilla
+                // ==========================================================
+                f0_dgv1.Refresh();
+
+                foreach (DataGridViewRow row in f0_dgv1.Rows)
+                {
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+
+                    if (estado.StartsWith("OK"))
+                    {
+                        row.DefaultCellStyle.BackColor = Color.LightGreen;
+                        listos++;
+                    }
+                    else if (estado.StartsWith("ERROR"))
+                    {
+                        row.DefaultCellStyle.BackColor = Color.LightCoral;
+                        errores++;
+                    }
+                }
+
+                f0_progressBar4.Style = ProgressBarStyle.Blocks;
+                f0_progressBar4.Value = 100;
+
+                MessageBox.Show($"¡Auditoría Fase 0 Finalizada!\n\n" +
+                                $"• Filas Listas para Mover: {listos}\n" +
+                                $"• Errores Detectados: {errores}\n\n" +
+                                (errores > 0 ? "Corrija los errores en el Excel antes de continuar." : "Todo cuadra. Listo para Salida Masiva."),
+                                "Reporte de Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error en la validación: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                f0_prevalidar.Enabled = true;
+                f0_progressBar4.Visible = false;
+            }
+
+
+
+        }
+
+        private async void f0_salidamasiva_Click(object sender, EventArgs e)
+        {
+
+            // =========================================================================
+            // MODO DE EJECUCIÓN (false = Afectará la base de datos SBO_MAKITA_WMS)
+            // =========================================================================
+            bool modoSimulacion = false;
+
+            var filasOk = dtExcelFase0.AsEnumerable()
+                .Where(r => r.Field<string>("EstadoValidacion").StartsWith("OK"))
+                .ToList();
+
+            if (filasOk.Count == 0)
+            {
+                MessageBox.Show("No hay registros en estado 'OK' para procesar. Pasa la Pre-Validación primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            f0_salidamasiva.Enabled = false;
+            f0_progressBar4.Visible = true;
+            f0_progressBar4.Style = ProgressBarStyle.Marquee;
+
+            var logSalida = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logSalida.Add($"--- INICIO DE PROCESO DE VACIADO BIMODAL INTELIGENTE (SIMULACIÓN: {modoSimulacion}) ---");
+            logSalida.Add($"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logSalida.Add("----------------------------------------------------------------------");
+
+            try
+            {
+                var agrupacionPorArticulo = filasOk.GroupBy(r => r.Field<string>("ItemCode").Trim()).ToList();
+
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(5))
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var grupo in agrupacionPorArticulo)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            string itemCode = grupo.Key;
+                            string cuentaContableAjuste = "_SYS00000000565";
+
+                            try
+                            {
+                                // ==========================================================
+                                // PASO 1: DETECTAR SI EL ARTÍCULO YA ES "LOTE" EN SAP
+                                // ==========================================================
+                                string isBatch = "N";
+                                using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                                {
+                                    conn.Open();
+                                    string queryLoteActivo = $"SELECT \"ManBtchNum\" FROM OITM WHERE \"ItemCode\" = '{itemCode}'";
+                                    using (var cmd = new System.Data.Odbc.OdbcCommand(queryLoteActivo, conn))
+                                    {
+                                        var result = cmd.ExecuteScalar();
+                                        if (result != null && result != DBNull.Value) isBatch = result.ToString();
+                                    }
+                                }
+
+                                // ==========================================================
+                                // PASO 2: EXTRAER STOCK GLOBAL (BIMODAL) Y ARMAR JSON
+                                // ==========================================================
+                                var documentLines = new List<object>();
+                                decimal stockTotalEmpresa = 0;
+                                int numeroDeLinea = 0;
+
+                                if (isBatch == "N")
+                                {
+                                    // --- LÓGICA A: ARTÍCULO NORMAL (Búsqueda en OIBQ) ---
+                                    var stockNormal = new List<Tuple<string, int, decimal>>();
+
+                                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                                    {
+                                        conn.Open();
+                                        string queryNormal = $@"
+                                    SELECT T0.""WhsCode"", T1.""AbsEntry"", T0.""OnHandQty""
+                                    FROM OIBQ T0 INNER JOIN OBIN T1 ON T0.""BinAbs"" = T1.""AbsEntry""
+                                    WHERE T0.""ItemCode"" = '{itemCode}' AND T0.""OnHandQty"" > 0";
+
+                                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryNormal, conn))
+                                        using (var reader = cmd.ExecuteReader())
+                                        {
+                                            while (reader.Read())
+                                            {
+                                                stockNormal.Add(new Tuple<string, int, decimal>(reader.GetString(0), reader.GetInt32(1), reader.GetDecimal(2)));
+                                            }
+                                        }
+                                    }
+
+                                    var almacenesNormal = stockNormal.GroupBy(x => x.Item1);
+                                    foreach (var whsGrp in almacenesNormal)
+                                    {
+                                        string codAlmacen = whsGrp.Key;
+                                        decimal totalAlmacen = 0;
+                                        var binAllocationsList = new List<object>();
+
+                                        foreach (var bin in whsGrp)
+                                        {
+                                            decimal qtyBin = bin.Item3;
+                                            totalAlmacen += qtyBin;
+                                            binAllocationsList.Add(new { BinAbsEntry = bin.Item2, Quantity = qtyBin, BaseLineNumber = numeroDeLinea });
+                                        }
+
+                                        documentLines.Add(new
+                                        {
+                                            ItemCode = itemCode,
+                                            Quantity = totalAlmacen,
+                                            WarehouseCode = codAlmacen,
+                                            AccountCode = cuentaContableAjuste,
+                                            DocumentLinesBinAllocations = binAllocationsList
+                                        });
+                                        stockTotalEmpresa += totalAlmacen;
+                                        numeroDeLinea++;
+                                    }
+                                }
+                                else
+                                {
+                                    // --- LÓGICA B: ARTÍCULO CON LOTES (Búsqueda en OBBQ + OBTN) ---
+                                    var lotesSAP = new List<Tuple<string, int, string, decimal>>();
+
+                                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                                    {
+                                        conn.Open();
+                                        string queryLotes = $@"
+                                    SELECT T0.""WhsCode"", T0.""BinAbs"", T1.""DistNumber"", T0.""OnHandQty""
+                                    FROM OBBQ T0 INNER JOIN OBTN T1 ON T0.""SnBMDAbs"" = T1.""AbsEntry""
+                                    WHERE T0.""ItemCode"" = '{itemCode}' AND T0.""OnHandQty"" > 0";
+
+                                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryLotes, conn))
+                                        using (var reader = cmd.ExecuteReader())
+                                        {
+                                            while (reader.Read())
+                                            {
+                                                lotesSAP.Add(new Tuple<string, int, string, decimal>(reader.GetString(0), reader.GetInt32(1), reader.GetString(2), reader.GetDecimal(3)));
+                                            }
+                                        }
+                                    }
+
+                                    var almacenesConLotes = lotesSAP.GroupBy(x => x.Item1);
+                                    foreach (var whsGrp in almacenesConLotes)
+                                    {
+                                        string codAlmacen = whsGrp.Key;
+                                        decimal totalAlmacen = 0;
+                                        var batchNumbersList = new List<object>();
+                                        var binAllocationsList = new List<object>();
+                                        int batchIndex = 0;
+
+                                        // Agrupamos los lotes idénticos dentro del mismo almacén
+                                        var agrupadoPorLote = whsGrp.GroupBy(x => x.Item3);
+                                        foreach (var loteGrp in agrupadoPorLote)
+                                        {
+                                            string numLote = loteGrp.Key;
+                                            decimal qtyLoteTotal = 0;
+
+                                            foreach (var bin in loteGrp)
+                                            {
+                                                decimal qtyBin = bin.Item4;
+                                                qtyLoteTotal += qtyBin;
+
+                                                binAllocationsList.Add(new
+                                                {
+                                                    BinAbsEntry = bin.Item2,
+                                                    Quantity = qtyBin,
+                                                    BaseLineNumber = numeroDeLinea,
+                                                    SerialAndBatchNumbersBaseLine = batchIndex
+                                                });
+                                            }
+
+                                            batchNumbersList.Add(new { BatchNumber = numLote, Quantity = qtyLoteTotal });
+                                            totalAlmacen += qtyLoteTotal;
+                                            batchIndex++;
+                                        }
+
+                                        documentLines.Add(new
+                                        {
+                                            ItemCode = itemCode,
+                                            Quantity = totalAlmacen,
+                                            WarehouseCode = codAlmacen,
+                                            AccountCode = cuentaContableAjuste,
+                                            BatchNumbers = batchNumbersList,
+                                            DocumentLinesBinAllocations = binAllocationsList
+                                        });
+                                        stockTotalEmpresa += totalAlmacen;
+                                        numeroDeLinea++;
+                                    }
+                                }
+
+                                // ==========================================================
+                                // PASO 3: ENVIAR VACIADO AL SERVICE LAYER
+                                // ==========================================================
+                                if (stockTotalEmpresa > 0)
+                                {
+                                    var salidaJsonPayload = new
+                                    {
+                                        DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                                        Comments = "WMS - Vaciado global para Sinceramiento de Lotes",
+                                        U_EXX_TIPOOPER = "28",
+                                        DocumentLines = documentLines
+                                    };
+
+                                    string jsonSalidaStr = System.Text.Json.JsonSerializer.Serialize(salidaJsonPayload);
+
+                                    if (modoSimulacion)
+                                    {
+                                        logSalida.Add($"[SIMULACIÓN] {itemCode} | Vaciando GLOBAL {stockTotalEmpresa} | JSON: {jsonSalidaStr}");
+                                    }
+                                    else
+                                    {
+                                        var contentSalida = new StringContent(jsonSalidaStr, System.Text.Encoding.UTF8, "application/json");
+                                        var responseSalida = await client.PostAsync(slUrlBaseGlobal + "InventoryGenExits", contentSalida);
+
+                                        if (!responseSalida.IsSuccessStatusCode) throw new Exception($"Fallo en Vaciado Global: {await responseSalida.Content.ReadAsStringAsync()}");
+                                        logSalida.Add($"[ÉXITO] Artículo {itemCode} vaciado globalmente ({stockTotalEmpresa} unds).");
+                                    }
+                                }
+                                else
+                                {
+                                    logSalida.Add($"[INFO] Artículo {itemCode} ya tiene stock global 0 en SAP. Se omite Salida.");
+                                }
+
+                                // ==========================================================
+                                // PASO 4: ACTIVACIÓN CONDICIONAL DE LOTES
+                                // ==========================================================
+                                if (isBatch == "N")
+                                {
+                                    string jsonPatchItem = @"{ ""ManageBatchNumbers"": ""tYES"", ""ManageSerialNumbers"": ""tNO"", ""IssuePrimarilyBy"": ""ipbSerialAndBatchNumbers"" }";
+
+                                    if (modoSimulacion)
+                                    {
+                                        logSalida.Add($"[SIMULACIÓN] {itemCode} | PATCH Items -> Lotes Activados");
+                                        Invoke(new Action(() => { foreach (var row in grupo) row.SetField("EstadoValidacion", "SIMULADO OK"); }));
+                                        await Task.Delay(50);
+                                    }
+                                    else
+                                    {
+                                        var contentPatch = new StringContent(jsonPatchItem, System.Text.Encoding.UTF8, "application/json");
+                                        var responsePatch = await client.PatchAsync(slUrlBaseGlobal + $"Items('{itemCode}')", contentPatch);
+
+                                        if (!responsePatch.IsSuccessStatusCode) throw new Exception($"Vaciado exitoso, pero falló activación Lote: {await responsePatch.Content.ReadAsStringAsync()}");
+
+                                        logSalida.Add($"[ÉXITO] {itemCode} actualizado a 'Lotes'.");
+                                        Invoke(new Action(() => { foreach (var row in grupo) row.SetField("EstadoValidacion", "VACIADO Y LOTE ACTIVADO"); }));
+                                    }
+                                }
+                                else
+                                {
+                                    // Si ya era Lote, no enviamos el PATCH y simplemente marcamos como listo
+                                    logSalida.Add($"[INFO] {itemCode} ya usaba Lotes. Vaciado completado con éxito.");
+                                    Invoke(new Action(() => { foreach (var row in grupo) row.SetField("EstadoValidacion", "VACIADO LISTO (Ya usaba Lotes)"); }));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logSalida.Add($"[ERROR] Artículo {itemCode}: {ex.Message}");
+                                Invoke(new Action(() => { foreach (var row in grupo) row.SetField("EstadoValidacion", "ERROR EN PROCESO"); }));
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error general en el proceso: " + ex.Message, "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                string sufijo = modoSimulacion ? "SIMULACION" : "RESULTADOS";
+                string rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"WMS_Fase0_Vaciado_{sufijo}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logSalida);
+
+                f0_dgv1.Refresh();
+
+                foreach (DataGridViewRow row in f0_dgv1.Rows)
+                {
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+                    if (estado.Contains("OK") || estado.Contains("ACTIVADO") || estado.Contains("LISTO")) row.DefaultCellStyle.BackColor = Color.LimeGreen;
+                    else if (estado.Contains("ERROR")) row.DefaultCellStyle.BackColor = Color.Red;
+                }
+
+                f0_salidamasiva.Enabled = true;
+                f0_progressBar4.Visible = false;
+
+                MessageBox.Show($"Proceso de Salida finalizado.\nSe ha generado un Log detallado en tu escritorio:\n{rutaLog}", "Reporte WMS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+            }
+
+
+
+
+
+
+        }
+
+        private async void f0_entradamasiva_Click(object sender, EventArgs e)
+        {
+            // =========================================================================
+            // MODO DE EJECUCIÓN (false = Afectará la base de datos SBO_MAKITA_WMS)
+            // =========================================================================
+            bool modoSimulacion = false;
+
+            // Filtramos solo los registros que pasaron la validación o que ya fueron vaciados
+            var filasOk = dtExcelFase0.AsEnumerable()
+                .Where(r => r.Field<string>("EstadoValidacion").Contains("OK") ||
+                            r.Field<string>("EstadoValidacion").Contains("ACTIVADO") ||
+                            r.Field<string>("EstadoValidacion").Contains("LISTO"))
+                .ToList();
+
+            if (filasOk.Count == 0)
+            {
+                MessageBox.Show("No hay registros listos para ingreso. Revise las validaciones.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            f0_entradamasiva.Enabled = false;
+            f0_progressBar4.Visible = true;
+            f0_progressBar4.Style = ProgressBarStyle.Marquee;
+
+            var logIngreso = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logIngreso.Add($"--- INICIO DE PROCESO DE INGRESO CON LOTES (SIMULACIÓN: {modoSimulacion}) ---");
+            logIngreso.Add($"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logIngreso.Add("----------------------------------------------------------------------");
+
+            try
+            {
+                // ==========================================================
+                // PASO 1: OBTENER LOS IDs DE LAS UBICACIONES DESDE HANA
+                // ==========================================================
+                var distinctBins = filasOk.Select(r => r.Field<string>("Ubicacion").Trim()).Distinct().ToList();
+                var dicBins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                await Task.Run(() =>
+                {
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        string inClause = string.Join(",", distinctBins.Select(b => $"'{b}'"));
+                        string queryBins = $@"SELECT ""BinCode"", ""AbsEntry"" FROM OBIN WHERE ""BinCode"" IN ({inClause})";
+
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryBins, conn))
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                dicBins[reader.GetString(0)] = reader.GetInt32(1);
+                            }
+                        }
+                    }
+                });
+
+                // ==========================================================
+                // PASO 2: PROCESAR EL INGRESO AGRUPADO POR ARTÍCULO
+                // ==========================================================
+                var agrupacionPorArticulo = filasOk.GroupBy(r => r.Field<string>("ItemCode").Trim()).ToList();
+                string cuentaContableAjuste = "_SYS00000000565";
+
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(5))
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var grupoArticulo in agrupacionPorArticulo)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            string itemCode = grupoArticulo.Key;
+
+                            try
+                            {
+                                var documentLines = new List<object>();
+                                int numeroLineaCabecera = 0;
+
+                                // Agrupamos por Almacén dentro del Artículo (Un requerimiento de SAP)
+                                var lineasPorAlmacen = grupoArticulo.GroupBy(r => r.Field<string>("WhsCode").Trim());
+
+                                foreach (var whsGroup in lineasPorAlmacen)
+                                {
+                                    string whsCode = whsGroup.Key;
+
+                                    var batchNumbers = new List<object>();
+                                    var binAllocations = new List<object>();
+
+                                    decimal totalCantAlmacen = 0;
+                                    int indiceLote = 0;
+
+                                    // Recorremos las filas del Excel para este artículo y este almacén
+                                    foreach (var fila in whsGroup)
+                                    {
+                                        string lote = fila.Field<string>("Lote").Trim();
+                                        decimal qty = fila.Field<decimal>("Cantidad");
+                                        string fechaVenc = fila.Field<string>("FechaVencimiento");
+                                        string binCode = fila.Field<string>("Ubicacion").Trim();
+                                        int binAbsEntry = dicBins.ContainsKey(binCode) ? dicBins[binCode] : 0;
+
+                                        // 1. Definir el Lote
+                                        batchNumbers.Add(new
+                                        {
+                                            BatchNumber = lote,
+                                            Quantity = qty,
+                                            ExpiryDate = fechaVenc
+                                        });
+
+                                        // 2. Definir la Ubicación y enlazarla al Lote (SerialAndBatchNumbersBaseLine)
+                                        binAllocations.Add(new
+                                        {
+                                            BinAbsEntry = binAbsEntry,
+                                            Quantity = qty,
+                                            BaseLineNumber = numeroLineaCabecera,
+                                            SerialAndBatchNumbersBaseLine = indiceLote // <--- LA MAGIA DE ENLACE AQUÍ
+                                        });
+
+                                        totalCantAlmacen += qty;
+                                        indiceLote++;
+                                    }
+
+                                    // 3. Empaquetar la línea del documento
+                                    documentLines.Add(new
+                                    {
+                                        ItemCode = itemCode,
+                                        Quantity = totalCantAlmacen,
+                                        WarehouseCode = whsCode,
+                                        AccountCode = cuentaContableAjuste,
+                                        BatchNumbers = batchNumbers,
+                                        DocumentLinesBinAllocations = binAllocations
+                                    });
+
+                                    numeroLineaCabecera++;
+                                }
+
+                                // 4. Armar el JSON del Documento Completo
+                                var ingresoJsonPayload = new
+                                {
+                                    DocDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                                    Comments = "WMS - Ingreso final por Sinceramiento de Lotes",
+                                    U_EXX_TIPOOPER = "28", // Tipificación de operación
+                                    DocumentLines = documentLines
+                                };
+
+                                string jsonIngresoStr = System.Text.Json.JsonSerializer.Serialize(ingresoJsonPayload);
+
+                                if (modoSimulacion)
+                                {
+                                    logIngreso.Add($"[SIMULACIÓN] Artículo {itemCode} | INGRESO | JSON: {jsonIngresoStr}");
+                                    Invoke(new Action(() => {
+                                        foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "SIMULADO INGRESO OK");
+                                    }));
+                                    await Task.Delay(50);
+                                }
+                                else
+                                {
+                                    // 5. Disparar al Service Layer (InventoryGenEntries)
+                                    var contentIngreso = new StringContent(jsonIngresoStr, System.Text.Encoding.UTF8, "application/json");
+                                    string urlIngreso = slUrlBaseGlobal + "InventoryGenEntries";
+
+                                    var responseIngreso = await client.PostAsync(urlIngreso, contentIngreso);
+
+                                    if (!responseIngreso.IsSuccessStatusCode)
+                                    {
+                                        string errS = await responseIngreso.Content.ReadAsStringAsync();
+                                        throw new Exception($"Fallo en Ingreso: {errS}");
+                                    }
+
+                                    logIngreso.Add($"[ÉXITO] Artículo {itemCode} ingresado correctamente con Lotes y Ubicaciones.");
+
+                                    Invoke(new Action(() => {
+                                        foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "INGRESO EXITOSO (STOCK ACTUALIZADO)");
+                                    }));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logIngreso.Add($"[ERROR] Artículo {itemCode} (Ingreso): {ex.Message}");
+                                Invoke(new Action(() => {
+                                    foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "ERROR EN INGRESO");
+                                }));
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error general en el proceso de Entrada: " + ex.Message, "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // ==========================================================
+                // PASO 3: EXPORTAR EL LOG AL ESCRITORIO
+                // ==========================================================
+                string sufijo = modoSimulacion ? "SIMULACION" : "RESULTADOS";
+                string rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"WMS_Fase0_Ingreso_{sufijo}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logIngreso);
+
+                f0_dgv1.Refresh();
+
+                foreach (DataGridViewRow row in f0_dgv1.Rows)
+                {
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+                    if (estado.Contains("EXITOSO") || estado.Contains("SIMULADO")) row.DefaultCellStyle.BackColor = Color.LightSkyBlue; // Pintamos de Azul/Celeste el éxito final
+                    else if (estado.Contains("ERROR")) row.DefaultCellStyle.BackColor = Color.LightCoral;
+                }
+
+                f0_entradamasiva.Enabled = true;
+                f0_progressBar4.Visible = false;
+
+                MessageBox.Show($"Proceso de Entrada Masiva finalizado.\nSe ha generado un Log detallado en tu escritorio:\n{rutaLog}", "Reporte WMS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+            }
+
+
+
+
+
+
+
+
 
 
 
