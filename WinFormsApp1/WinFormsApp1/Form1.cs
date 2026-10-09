@@ -18,7 +18,9 @@ namespace WinFormsApp1
         private int totalLineasExitosas = 0;
         private int totalLineasFallidas = 0;
 
-
+        // Variable global para controlar qué hará el botón Log-exportar
+        private enum FaseWMS { Ninguna, PreValidacion, Salida, Entrada }
+        private FaseWMS faseActual = FaseWMS.Ninguna;
 
         //string miBaseDatos = "SBO_MAKITA_PE"; // La BD de la sociedad
         //string miUsuario = "manager";
@@ -1303,7 +1305,7 @@ namespace WinFormsApp1
                 .ToList();
 
             button10.Enabled = false;
-            button10.Text = "Activando y Liberando Candados..."; // Refleja la doble acción
+            button10.Text = "Activando y Liberando Candados...";
 
             // Configuración de la Barra de Progreso 2
             progressBar2.Minimum = 0;
@@ -1331,23 +1333,7 @@ namespace WinFormsApp1
                         {
                             string endpoint = $"Items('{itemCode}')";
 
-                            // =====================================================================
-                            // CORRECCIÓN ESTRATÉGICA WMS:
-                            // 1. "Valid": "tYES" -> Despierta el artículo si estaba inactivo.
-                            // 2. "EnforceDefaultBin": "tNO" -> Arranca de raíz la regla del Error -10
-                            // =====================================================================
-                            string jsonPatch = @"{
-                            ""Valid"": ""tYES"",
-                            ""ItemWarehouseInfoCollection"": [
-                                {
-                                    ""WarehouseCode"": ""ALM01"",
-                                    ""DefaultBinEnforced"": ""tNO""
-                                }
-                            ]
-
-
-                       
-                    }";
+                            string jsonPatch = @"{ ""Valid"": ""tYES"", ""ItemWarehouseInfoCollection"": [ { ""WarehouseCode"": ""ALM01"", ""DefaultBinEnforced"": ""tNO"" } ] }";
 
                             var content = new StringContent(jsonPatch, Encoding.UTF8, "application/json");
                             var request = new HttpRequestMessage(new HttpMethod("PATCH"), endpoint) { Content = content };
@@ -1391,24 +1377,40 @@ namespace WinFormsApp1
             progressBar2.Value = progressBar2.Maximum;
 
             // Generar log si hubo errores
+            string rutaLog = string.Empty;
             if (errores > 0)
             {
-                string ruta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_Activacion_WMS_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-                File.WriteAllLines(ruta, logActivacion);
+                rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_Activacion_WMS_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logActivacion);
             }
 
             button10.Enabled = true;
             button10.Text = "Activar Artículos Masivamente";
 
+            // =====================================================================
+            // DETALLE INFORMATIVO EN EL MESSAGEBOX
+            // =====================================================================
+            string resumen = $"=== RESUMEN DE ACTIVACIÓN Y LIBERACIÓN ===\n\n" +
+                             $"• Total procesados: {codigosArticulos.Count}\n" +
+                             $"• Actualizados con éxito: {actualizados}\n" +
+                             $"• Errores / Pendientes: {errores}\n";
+
             if (errores > 0)
             {
-                MessageBox.Show($"¡Proceso finalizado con observaciones!\n\nArtículos procesados: {actualizados}\nErrores: {errores}\n\nRevisa el archivo de log generado en el Escritorio.",
-                    "WMS Makita - Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                var muestrasErrores = logActivacion.Take(3).ToList();
+                if (muestrasErrores.Count > 0)
+                {
+                    resumen += "\nPrimeros errores detectados:\n" + string.Join("\n", muestrasErrores) + "\n";
+                }
+
+                resumen += $"\nLog completo guardado en:\n{rutaLog}";
+
+                MessageBox.Show(resumen, "WMS Makita - Finalizado con Observaciones", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show($"¡ÉXITO TOTAL!\n\nSe activaron y liberaron de la ubicación por defecto a {actualizados} artículos limpiamente.",
-                    "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(resumen + "\n¡Todos los artículos se actualizaron limpiamente sin errores!",
+                    "WMS Makita - Éxito Total", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
 
@@ -1453,12 +1455,14 @@ namespace WinFormsApp1
 
         private async void button8_Click_1(object sender, EventArgs e)
         {
-            // Reseteamos los contadores a nivel de clase
+
+            // Reseteamos los contadores a nivel de clase o locales
             itemsProcesados = 0;
             transferenciasExitosas = 0;
             errores = 0;
             totalLineasExitosas = 0;
             totalLineasFallidas = 0;
+            double totalUnidadesMovidas = 0; // NUEVO: Cuantificador de unidades físicas de stock
 
             int idUbicacionPulmon = 3; // ID confirmado de tu ubicación pulmón
 
@@ -1474,6 +1478,7 @@ namespace WinFormsApp1
             button7.Enabled = false;
 
             System.Collections.Concurrent.ConcurrentBag<string> logReubicacion = new System.Collections.Concurrent.ConcurrentBag<string>();
+            object lockObjeto = new object(); // Objeto para asegurar la suma segura de cantidades flotantes
 
             var agrupadoPorUbicacion = dtStock.AsEnumerable()
                 .GroupBy(row => row["Id_Ubicacion_Origen"].ToString())
@@ -1543,7 +1548,7 @@ namespace WinFormsApp1
                             // =========================================================================
                             if (lineasTransferencia.Count > 0)
                             {
-                                const int TAMANO_LOTE = 20; // Ajustado a 20 líneas para máxima fluidez
+                                const int TAMANO_LOTE = 20;
                                 for (int i = 0; i < lineasTransferencia.Count; i += TAMANO_LOTE)
                                 {
                                     var chunkLineas = lineasTransferencia.Skip(i).Take(TAMANO_LOTE).ToList();
@@ -1555,6 +1560,23 @@ namespace WinFormsApp1
                                     {
                                         System.Threading.Interlocked.Add(ref totalLineasExitosas, cantLineas);
                                         System.Threading.Interlocked.Increment(ref transferenciasExitosas);
+
+                                        // Sumamos las cantidades físicas de este lote exitoso de forma segura
+                                        double sumaChunk = 0;
+                                        foreach (var linea in chunkLineas)
+                                        {
+                                            // Extraemos la cantidad de la estructura anónima de forma segura
+                                            var prop = linea.GetType().GetProperty("Quantity");
+                                            if (prop != null)
+                                            {
+                                                sumaChunk += Convert.ToDouble(prop.GetValue(linea));
+                                            }
+                                        }
+
+                                        lock (lockObjeto)
+                                        {
+                                            totalUnidadesMovidas += sumaChunk;
+                                        }
                                     }
                                     else
                                     {
@@ -1589,16 +1611,43 @@ namespace WinFormsApp1
             button8.Enabled = true;
             button7.Enabled = true;
 
+            // Generar archivo de log si se registraron fallas
+            string rutaLog = string.Empty;
             if (errores > 0)
             {
-                string ruta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_WMS_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-                File.WriteAllLines(ruta, logReubicacion);
-                MessageBox.Show($"Migración finalizada con observaciones.\n\nDocumentos Exitosos: {transferenciasExitosas} | Líneas Trasladadas: {totalLineasExitosas}\nDocumentos con Error: {errores} | Líneas Fallidas: {totalLineasFallidas}\n\nRevisa el archivo de log en el escritorio.", "Alerta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_WMS_Reubicacion_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logReubicacion);
+            }
+
+            // =========================================================================
+            // REPORTE DETALLADO Y CUANTIFICADO EN EL MESSAGEBOX
+            // =========================================================================
+            string reporteDetallado = $"=== REPORTE DE REUBICACIÓN AL PULMÓN ===\n\n" +
+                                     $"• Ubicaciones origen evaluadas: {agrupadoPorUbicacion.Count}\n" +
+                                     $"• Documentos creados en SAP (Exitosos): {transferenciasExitosas}\n" +
+                                     $"• Líneas procesadas con éxito: {totalLineasExitosas}\n" +
+                                     $"• Unidades físicas (piezas) trasladadas: {totalUnidadesMovidas:N2}\n\n" +
+                                     $"• Documentos con error: {errores}\n" +
+                                     $"• Líneas fallidas / pendientes: {totalLineasFallidas}\n";
+
+            if (errores > 0)
+            {
+                var muestrasErrores = logReubicacion.Take(3).ToList();
+                if (muestrasErrores.Count > 0)
+                {
+                    reporteDetallado += "\nPrimeros errores registrados:\n" + string.Join("\n", muestrasErrores) + "\n";
+                }
+                reporteDetallado += $"\nLog detallado guardado en:\n{rutaLog}";
+
+                MessageBox.Show(reporteDetallado, "WMS Makita - Finalizado con Observaciones", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                MessageBox.Show($"¡ÉXITO TOTAL!\n\nSe trasladaron todas las líneas de stock exitosamente al pulmón.\nTotal de líneas procesadas: {totalLineasExitosas}", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(reporteDetallado + "\n¡Todas las existencias físicas se trasladaron limpiamente al pulmón sin errores!",
+                    "WMS Makita - Éxito Total", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+
+
 
         }
 
@@ -2014,6 +2063,8 @@ namespace WinFormsApp1
         }
 
 
+
+
         private async void button4_Click_1(object sender, EventArgs e)
         {
             button4.Enabled = false;
@@ -2049,7 +2100,6 @@ namespace WinFormsApp1
 
                     if (!string.IsNullOrEmpty(binCode))
                     {
-                        // NOTA: Aquí le quitamos los guiones al código para procesarlo más rápido
                         string binCodeLimpio = binCode.Replace("-", "").Trim();
                         ubicacionesHANA[binCodeLimpio] = absEntry;
                         estatusHANA[binCodeLimpio] = inactive;
@@ -2075,7 +2125,7 @@ namespace WinFormsApp1
                     string cleanBinCode = $"{whs}{fila}{cuerpo}{piso}{fondo}";
                     codigosExcelLimpio.Add(cleanBinCode);
 
-                    // CORRECCIÓN PREVENTIVA: Buscar la palabra sin guiones en memoria
+                    // Protección de ubicaciones de sistema
                     if (cleanBinCode.Contains("UBICACIÓNDESISTEMA") || cleanBinCode.Contains("SYSTEM") || cleanBinCode.Contains("MUELLE"))
                     {
                         continue;
@@ -2139,14 +2189,14 @@ namespace WinFormsApp1
                             {
                                 // === CREAR (POST) ===
                                 string jsonPost = $@"{{
-                    ""Warehouse"": ""{item.Whs}"",
-                    ""Sublevel1"": ""{item.Fila}"",
-                    ""Sublevel2"": ""{item.Cuerpo}"",
-                    ""Sublevel3"": ""{item.Piso}"",
-                    ""Sublevel4"": ""{item.Fondo}"",
-                    ""Inactive"": ""{item.Inactive}"",
-                    ""U_WAR_DW_TYPE_LOCATION"": ""2""
-                }}";
+                                ""Warehouse"": ""{item.Whs}"",
+                                ""Sublevel1"": ""{item.Fila}"",
+                                ""Sublevel2"": ""{item.Cuerpo}"",
+                                ""Sublevel3"": ""{item.Piso}"",
+                                ""Sublevel4"": ""{item.Fondo}"",
+                                ""Inactive"": ""{item.Inactive}"",
+                                ""U_WAR_DW_TYPE_LOCATION"": ""2""
+                            }}";
 
                                 var content = new StringContent(jsonPost, System.Text.Encoding.UTF8, "application/json");
                                 var response = await client.PostAsync("BinLocations", content);
@@ -2157,6 +2207,8 @@ namespace WinFormsApp1
                                     throw new Exception($"HTTP {(int)response.StatusCode} - {sapError}");
                                 }
                                 System.Threading.Interlocked.Increment(ref creadas);
+
+
                             }
                         }
                         catch (Exception ex)
@@ -2179,7 +2231,7 @@ namespace WinFormsApp1
             // ====================================================================
             // INICIO ESCENARIO 3: BARRIDO DE INACTIVACIÓN (Limpieza de fantasmas)
             // ====================================================================
-            lblProgreso.Text = "Fase 2: Buscando y bloqueando ubicaciones sobrantes en HANA...";
+            lblProgreso.Text = "Fase 2: Buscando y bloqueando ubicaciones sobrantes en ALM01...";
             var tareasLimpieza = new List<Task>();
 
             using (SemaphoreSlim semaforoLimpieza = new SemaphoreSlim(15))
@@ -2190,18 +2242,13 @@ namespace WinFormsApp1
                     string absEntryHana = kvp.Value;
                     string statusActual = estatusHANA[binCodeHanaLimpio];
 
-                    // =======================================================================
-                    // MEJORA 1: Restricción absoluta por almacén. 
-                    // Ignorar ubicaciones de ALM07, ALM08, ALM11, etc.
-                    // =======================================================================
+                    // Restricción absoluta para no tocar otros almacenes
                     if (!binCodeHanaLimpio.StartsWith("ALM01"))
                     {
                         continue;
                     }
 
-                    // =======================================================================
-                    // MEJORA 2: Corregir filtro de sistema (Búsqueda sin guiones)
-                    // =======================================================================
+                    // Protección de ubicaciones de sistema
                     if (binCodeHanaLimpio.Contains("UBICACIÓNDESISTEMA") ||
                         binCodeHanaLimpio.Contains("SYS") ||
                         binCodeHanaLimpio.Contains("MUELLE"))
@@ -2248,24 +2295,22 @@ namespace WinFormsApp1
             }
 
             // ====================================================================
-            // FIN: REPORTE Y CULMINACIÓN
+            // FIN: REPORTE Y CULMINACIÓN DETALLADO Y CUANTIFICADO
             // ====================================================================
+            string rutaLog = string.Empty;
             if (errores > 0)
             {
                 try
                 {
                     string rutaEscritorio = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    string nombreArchivo = $"Log_WMS_Makita_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-                    string rutaCompleta = System.IO.Path.Combine(rutaEscritorio, nombreArchivo);
+                    string nombreArchivo = $"Log_WMS_Topologia_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+                    rutaLog = System.IO.Path.Combine(rutaEscritorio, nombreArchivo);
 
-                    System.IO.File.WriteAllLines(rutaCompleta, logErrores);
-
-                    MessageBox.Show($"Migración masiva finalizada con observaciones.\n\nCreadas: {creadas}\nActualizadas: {actualizadas}\nInactivadas (Sobrantes): {inactivadasFantasmas}\nErrores: {errores}\n\nRevisa el archivo de Log generado.",
-                                    "WMS Makita - Log Generado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    System.IO.File.WriteAllLines(rutaLog, logErrores);
 
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
                     {
-                        FileName = rutaCompleta,
+                        FileName = rutaLog,
                         UseShellExecute = true
                     });
                 }
@@ -2274,10 +2319,30 @@ namespace WinFormsApp1
                     MessageBox.Show("No se pudo guardar el archivo Log: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+
+            // Estructura del MessageBox con precisión y contabilidad total
+            string reportePreciso = $"=== REPORTE DE SINCRONIZACIÓN DE TOPOLOGÍA (ALM01) ===\n\n" +
+                                    $"• Total filas leídas en Excel: {totalAProcesar}\n" +
+                                    $"• Ubicaciones Creadas (Nuevas): {creadas}\n" +
+                                    $"• Ubicaciones Actualizadas: {actualizadas}\n" +
+                                    $"• Ubicaciones Inactivadas (Sobrantes): {inactivadasFantasmas}\n" +
+                                    $"• Errores / Bloqueos detectados: {errores}\n";
+
+            if (errores > 0)
+            {
+                var muestraErrores = logErrores.Take(3).ToList();
+                if (muestraErrores.Count > 0)
+                {
+                    reportePreciso += "\nPrimeros errores registrados:\n" + string.Join("\n", muestraErrores) + "\n";
+                }
+                reportePreciso += $"\nLog detallado guardado en:\n{rutaLog}";
+
+                MessageBox.Show(reportePreciso, "WMS Makita - Finalizado con Observaciones", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
             else
             {
-                MessageBox.Show($"¡Lote MASIVO procesado limpiamente!\n\nCreadas: {creadas}\nActualizadas: {actualizadas}\nInactivadas (Sobrantes): {inactivadasFantasmas}\nErrores: 0",
-                                "WMS Makita - Éxito Total", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(reportePreciso + "\n¡Topología sincronizada y depurada limpiamente al 100%!",
+                    "WMS Makita - Éxito Total", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
             dataGridView1.Enabled = true;
@@ -2286,7 +2351,11 @@ namespace WinFormsApp1
             button4.Text = "Actualizar/Crear en BD";
             lblProgreso.Text = "Proceso Completado.";
             progressBar1.Value = 100;
+
+
         }
+
+
 
 
 
@@ -4279,9 +4348,9 @@ namespace WinFormsApp1
 
         }
 
+
         private async void f0_prevalidar_Click(object sender, EventArgs e)
         {
-
             if (dtExcelFase0 == null || dtExcelFase0.Rows.Count == 0) return;
 
             f0_prevalidar.Enabled = false;
@@ -4293,48 +4362,59 @@ namespace WinFormsApp1
 
             try
             {
+                // ==========================================================
+                // 0. PREVENCIÓN DE ERROR: Agregar columna
+                // ==========================================================
+                if (!dtExcelFase0.Columns.Contains("EstadoValidacion"))
+                {
+                    dtExcelFase0.Columns.Add("EstadoValidacion", typeof(string));
+                }
+
+                // Lanzamos el trabajo pesado a un hilo secundario
                 await Task.Run(() =>
                 {
-                    // 1. Agrupar cantidades del Excel por Artículo y Almacén
-                    // Si el D-18699 aparece 2 veces (600 + 400), aquí se suman a 1000
+                    // ==========================================================
+                    // 1. CONSOLIDACIÓN MATEMÁTICA USANDO ÍNDICES CORREGIDOS
+                    // ==========================================================
                     var excelSumaPorArticulo = dtExcelFase0.AsEnumerable()
                         .GroupBy(r => new
                         {
-                            ItemCode = r.Field<string>("ItemCode").Trim().ToUpper(),
-                            WhsCode = r.Field<string>("WhsCode").Trim().ToUpper()
+                            ItemCode = r[1].ToString().Trim().ToUpper(),
+                            WhsCode = r[3].ToString().Trim().ToUpper()
                         })
                         .ToDictionary(
                             g => $"{g.Key.ItemCode}|{g.Key.WhsCode}",
-                            g => g.Sum(r => r.Field<decimal>("Cantidad"))
+                            g => g.Sum(r => Convert.ToDecimal(r[5] ?? 0))
                         );
 
-                    // Obtener listas de valores únicos para consultar a SAP de golpe
-                    var distinctItems = dtExcelFase0.AsEnumerable().Select(r => r.Field<string>("ItemCode").Trim()).Distinct().ToList();
-                    var distinctBins = dtExcelFase0.AsEnumerable().Select(r => r.Field<string>("Ubicacion").Trim()).Distinct().ToList();
+                    var distinctItems = dtExcelFase0.AsEnumerable().Select(r => r[1].ToString().Trim().ToUpper()).Distinct().ToList();
+                    var distinctBins = dtExcelFase0.AsEnumerable().Select(r => r[4].ToString().Replace("-", "").Trim().ToUpper()).Distinct().ToList();
 
-                    // Diccionarios RAM para guardar la verdad de SAP
-                    var sapItemStatus = new Dictionary<string, string>(); // 'Y' o 'N' (Lotes activados)
-                    var sapItemStock = new Dictionary<string, decimal>(); // Stock actual en HANA
-                    var sapValidBins = new HashSet<string>(); // Ubicaciones que sí existen
+                    var sapItemStatus = new Dictionary<string, string>();
+                    var sapItemStock = new Dictionary<string, decimal>();
+                    var sapValidBins = new HashSet<string>();
+                    var sapItemStockGlobal = new Dictionary<string, decimal>();
+                    var sapItemComprometidoGlobal = new Dictionary<string, decimal>();
 
                     // ==========================================================
-                    // DESCARGAR RADIOGRAFÍA DE HANA (Optimizada en bloques)
+                    // 2. DESCARGA DE LA RADIOGRAFÍA DESDE HANA 
                     // ==========================================================
                     using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
                     {
                         conn.Open();
 
-                        // --- CONSULTAR ARTÍCULOS Y STOCK (En bloques de 1000 para no ahogar la red) ---
                         for (int i = 0; i < distinctItems.Count; i += 1000)
                         {
                             var chunk = distinctItems.Skip(i).Take(1000);
                             string inClause = string.Join(",", chunk.Select(item => $"'{item}'"));
 
                             string queryItems = $@"
-                        SELECT T0.""ItemCode"", T0.""ManBtchNum"", T1.""WhsCode"", T1.""OnHand""
-                        FROM OITM T0
-                        INNER JOIN OITW T1 ON T0.""ItemCode"" = T1.""ItemCode""
-                        WHERE T0.""ItemCode"" IN ({inClause})";
+                    SELECT T0.""ItemCode"", T0.""ManBtchNum"", T1.""WhsCode"", T1.""OnHand"", 
+                           (SELECT SUM(""OnHand"") FROM OITW WHERE ""ItemCode"" = T0.""ItemCode"") AS ""StockGlobal"",
+                           (SELECT SUM(""IsCommited"" + ""OnOrder"") FROM OITW WHERE ""ItemCode"" = T0.""ItemCode"") AS ""ComprometidoGlobal""
+                    FROM OITM T0 
+                    INNER JOIN OITW T1 ON T0.""ItemCode"" = T1.""ItemCode"" 
+                    WHERE T0.""ItemCode"" IN ({inClause})";
 
                             using (var cmd = new System.Data.Odbc.OdbcCommand(queryItems, conn))
                             using (var reader = cmd.ExecuteReader())
@@ -4342,17 +4422,16 @@ namespace WinFormsApp1
                                 while (reader.Read())
                                 {
                                     string itm = reader.GetString(0).ToUpper();
-                                    string isBatch = reader.GetString(1); // 'Y' (Tiene lotes) o 'N' (No tiene)
-                                    string whs = reader.GetString(2).ToUpper();
-                                    decimal stock = reader.GetDecimal(3);
+                                    sapItemStatus[itm] = reader.GetString(1);
+                                    sapItemStock[$"{itm}|{reader.GetString(2).ToUpper()}"] = reader.GetDecimal(3);
 
-                                    sapItemStatus[itm] = isBatch;
-                                    sapItemStock[$"{itm}|{whs}"] = stock;
+                                    // Guardamos el stock global y lo comprometido (Pedidos)
+                                    sapItemStockGlobal[itm] = reader.GetDecimal(4);
+                                    sapItemComprometidoGlobal[itm] = reader.GetDecimal(5);
                                 }
                             }
                         }
 
-                        // --- CONSULTAR UBICACIONES ---
                         for (int i = 0; i < distinctBins.Count; i += 1000)
                         {
                             var chunk = distinctBins.Skip(i).Take(1000);
@@ -4371,95 +4450,92 @@ namespace WinFormsApp1
                     }
 
                     // ==========================================================
-                    // CRUZAR EXCEL VS SAP (Validación Fila por Fila)
+                    // 3. MOTOR DE REGLAS (Fila por Fila usando Índices Corregidos)
                     // ==========================================================
                     foreach (DataRow row in dtExcelFase0.Rows)
                     {
-                        string itemCode = row["ItemCode"].ToString().Trim().ToUpper();
-                        string whsCode = row["WhsCode"].ToString().Trim().ToUpper();
-                        string ubicacion = row["Ubicacion"].ToString().Trim().ToUpper();
-                        string llaveStock = $"{itemCode}|{whsCode}";
+                        string itemCode = row[1].ToString().Trim().ToUpper();
+                        string whsCode = row[3].ToString().Trim().ToUpper();
+                        string ubicacionOriginal = row[4].ToString().Trim().ToUpper();
+                        string ubicacionLimpia = ubicacionOriginal.Replace("-", "");
 
+                        string llaveStock = $"{itemCode}|{whsCode}";
                         string estado = "OK - Listo para Salida";
 
-                        // Regla A: ¿La ubicación existe?
-                        if (!sapValidBins.Contains(ubicacion))
+                        // Validaciones
+                        if (!sapValidBins.Contains(ubicacionLimpia))
                         {
-                            estado = $"ERROR: Ubicación {ubicacion} no existe";
+                            estado = $"ERROR: Ubicación {ubicacionOriginal} no existe";
                         }
-                        // Regla B: ¿El artículo existe?
                         else if (!sapItemStatus.ContainsKey(itemCode))
                         {
                             estado = "ERROR: Artículo no existe en SAP";
                         }
-                        // Regla C: ¿Ya está activado por Lotes? (Queremos que sea 'N')
                         else if (sapItemStatus[itemCode] == "Y")
                         {
-                            ////estado = "ERROR: Artículo ya está gestionado por Lotes";
-
-                            //// Si ya tiene lotes, significa que ya pasó por la Fase de Vaciado (o ya venía así de SAP)
-                            //// Verificamos si su stock global es 0 para dar luz verde al ingreso.
-                            //decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
-
-                            //if (stockSap == 0)
-                            //{
-                            //    estado = "OK - LISTO PARA INGRESO (Lote Activo)";
-                            //}
-                            //else
-                            //{
-                            //    estado = $"ERROR: Artículo usa Lotes, pero tiene stock ({stockSap:N0}). Debe vaciarse primero.";
-                            //}
-
                             decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
-
                             if (stockSap == 0)
-                            {
                                 estado = "OK - LISTO PARA INGRESO (Lote Activo)";
+                            else
+                                estado = $"OK - Sinceramiento (Lote Activo | SAP: {stockSap:N0})";
+                        }
+                        else
+                        {
+                            // 1. Variables de stock
+                            decimal stockSapEspecifico = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
+                            decimal stockExcel = excelSumaPorArticulo.ContainsKey(llaveStock) ? excelSumaPorArticulo[llaveStock] : 0;
+                            decimal stockGlobal = sapItemStockGlobal.ContainsKey(itemCode) ? sapItemStockGlobal[itemCode] : 0;
+                            decimal comprometidoGlobal = sapItemComprometidoGlobal.ContainsKey(itemCode) ? sapItemComprometidoGlobal[itemCode] : 0;
+
+                            // 2. Cálculo exacto del stock fuera del almacén actual
+                            decimal stockOtrosAlmacenes = stockGlobal - stockSapEspecifico;
+
+                            // 3. Construcción dinámica del mensaje
+                            if (stockSapEspecifico != stockExcel)
+                            {
+                                estado = $"ERROR: Descuadre (SAP {whsCode} tiene {stockSapEspecifico:N0} y Excel pide {stockExcel:N0})";
+
+                                if (stockOtrosAlmacenes > 0)
+                                    estado += $" | OJO: Hay {stockOtrosAlmacenes:N0} unds en otros almacenes.";
+
+                                if (comprometidoGlobal > 0)
+                                    estado += $" | OJO: Hay {comprometidoGlobal:N0} pedidos pendientes.";
+                            }
+                            else if (stockOtrosAlmacenes > 0 || comprometidoGlobal > 0)
+                            {
+                                estado = $"ERROR: Bloqueo SAP. {whsCode} cuadra, pero hay {stockOtrosAlmacenes:N0} unds en otros almacenes o {comprometidoGlobal:N0} pedidos pendientes.";
                             }
                             else
                             {
-                                // Lo cambiamos a "OK" para que SalidaMasiva no se bloquee y proceda con el vaciado
-                                estado = $"OK - Sinceramiento (Lote Activo | SAP: {stockSap:N0})";
+                                estado = "OK - Cuadre Perfecto. Listo para Salida.";
                             }
-
-
-
-                        }
-                        // Regla D: ¿El stock del Excel cuadra con SAP?
-                        else
-                        {
-                            decimal stockSap = sapItemStock.ContainsKey(llaveStock) ? sapItemStock[llaveStock] : 0;
-                            decimal stockExcel = excelSumaPorArticulo.ContainsKey(llaveStock) ? excelSumaPorArticulo[llaveStock] : 0;
-
-                            if (stockSap != stockExcel)
-                            {
-                                estado = $"OK - Sinceramiento (SAP: {stockSap:N0} -> Excel: {stockExcel:N0})";
-                            }
-
                         }
 
                         row["EstadoValidacion"] = estado;
-                    }
+                    } // <--- FIN DEL FOREACH CORREGIDO (Todo queda dentro)
                 });
 
                 // ==========================================================
-                // VUELTA AL HILO PRINCIPAL: Pintar la grilla
+                // 4. FEEDBACK VISUAL EN UI (Hilo Principal)
                 // ==========================================================
                 f0_dgv1.Refresh();
 
                 foreach (DataGridViewRow row in f0_dgv1.Rows)
                 {
-                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+                    if (row.Cells["EstadoValidacion"] != null && row.Cells["EstadoValidacion"].Value != null)
+                    {
+                        string estado = row.Cells["EstadoValidacion"].Value.ToString();
 
-                    if (estado.StartsWith("OK"))
-                    {
-                        row.DefaultCellStyle.BackColor = Color.LightGreen;
-                        listos++;
-                    }
-                    else if (estado.StartsWith("ERROR"))
-                    {
-                        row.DefaultCellStyle.BackColor = Color.LightCoral;
-                        errores++;
+                        if (estado.StartsWith("OK"))
+                        {
+                            row.DefaultCellStyle.BackColor = Color.LightGreen;
+                            listos++;
+                        }
+                        else if (estado.StartsWith("ERROR"))
+                        {
+                            row.DefaultCellStyle.BackColor = Color.LightCoral;
+                            errores++;
+                        }
                     }
                 }
 
@@ -4467,28 +4543,82 @@ namespace WinFormsApp1
                 f0_progressBar4.Value = 100;
 
                 MessageBox.Show($"¡Auditoría Fase 0 Finalizada!\n\n" +
-                                $"• Filas Listas para Mover: {listos}\n" +
-                                $"• Errores Detectados: {errores}\n\n" +
-                                (errores > 0 ? "Corrija los errores en el Excel antes de continuar." : "Todo cuadra. Listo para Salida Masiva."),
-                                "Reporte de Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                $"• Filas Listas / Observadas: {listos}\n" +
+                                $"• Errores Bloqueantes: {errores}\n\n" +
+                                (errores > 0 ? "Corrija los errores en el Excel antes de continuar con la Salida." : "Auditoría superada. Proceda con la Salida Masiva."),
+                                "WMS Makita - Reporte de Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // ==========================================================
+                // 5. ACTUALIZACIÓN DEL BOTÓN CAMALEÓN (Exportar)
+                // ==========================================================
+                faseActual = FaseWMS.PreValidacion; // Asegúrate de tener el Enum FaseWMS declarado a nivel de clase
+                f0_logexportar.Text = "Exportar Descuadres";
+                f0_logexportar.BackColor = errores > 0 ? Color.Orange : Color.LightGray;
 
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error en la validación: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error crítico en la validación HANA: " + ex.Message, "Error WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
                 f0_prevalidar.Enabled = true;
                 f0_progressBar4.Visible = false;
             }
-
-
-
         }
 
         private async void f0_salidamasiva_Click(object sender, EventArgs e)
         {
+
+
+
+
+            // 1. VALIDACIÓN BÁSICA DE LA GRILLA
+
+            // =========================================================================
+
+            if (dtExcelFase0 == null || dtExcelFase0.Rows.Count == 0 || !dtExcelFase0.Columns.Contains("EstadoValidacion"))
+
+            {
+
+                MessageBox.Show("Primero debes Importar el Excel y ejecutar la 'pre-validar'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                return;
+
+            }
+
+
+
+            // =====================================================================
+
+            // 2. CANDADO ESTRICTO DE INTEGRIDAD WMS (Cero Errores Permitidos)
+
+            // =====================================================================
+
+            bool tieneErrores = dtExcelFase0.AsEnumerable()
+
+            .Any(row => row["EstadoValidacion"] != null &&
+
+            row["EstadoValidacion"].ToString().StartsWith("ERROR"));
+
+
+
+            if (tieneErrores)
+
+            {
+
+                MessageBox.Show("⛔ OPERACIÓN BLOQUEADA ⛔\n\n" +
+
+                "No se puede iniciar la Salida Masiva porque existen descuadres físicos vs SAP o errores en la grilla (filas rojas).\n\n" +
+
+                "Por favor, corrige el Excel o realiza los ajustes previos en SAP, y vuelve a pre-validar hasta que el 100% de las filas estén en verde.",
+
+                "WMS Makita - Integridad de Inventario", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+
+                return; // Aborta la ejecución aquí mismo. No toca SAP.
+
+            }
+
 
             // =========================================================================
             // MODO DE EJECUCIÓN (false = Afectará la base de datos SBO_MAKITA_WMS)
@@ -4753,6 +4883,14 @@ namespace WinFormsApp1
                     }
                     await Task.WhenAll(tareas);
                 }
+
+
+
+                faseActual = FaseWMS.Salida;
+                f0_salidamasiva.Text = "Ver Log de Vaciado";
+                f0_salidamasiva.BackColor = Color.LightSkyBlue;
+
+
             }
             catch (Exception ex)
             {
@@ -4821,7 +4959,15 @@ namespace WinFormsApp1
                 // ==========================================================
                 // PASO 1: OBTENER LOS IDs DE LAS UBICACIONES DESDE HANA
                 // ==========================================================
-                var distinctBins = filasOk.Select(r => r.Field<string>("Ubicacion").Trim()).Distinct().ToList();
+
+                //var distinctBins = filasOk.Select(r => r.Field<string>("Ubicacion").Trim()).Distinct().ToList();
+                var distinctBins = dtExcelFase0.AsEnumerable()
+                .Select(r => r.Field<string>("Ubicación").Replace("-", "").Trim().ToUpper())
+                .Distinct()
+                .ToList();
+
+
+
                 var dicBins = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 await Task.Run(() =>
@@ -4937,7 +5083,8 @@ namespace WinFormsApp1
                                 if (modoSimulacion)
                                 {
                                     logIngreso.Add($"[SIMULACIÓN] Artículo {itemCode} | INGRESO | JSON: {jsonIngresoStr}");
-                                    Invoke(new Action(() => {
+                                    Invoke(new Action(() =>
+                                    {
                                         foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "SIMULADO INGRESO OK");
                                     }));
                                     await Task.Delay(50);
@@ -4958,7 +5105,8 @@ namespace WinFormsApp1
 
                                     logIngreso.Add($"[ÉXITO] Artículo {itemCode} ingresado correctamente con Lotes y Ubicaciones.");
 
-                                    Invoke(new Action(() => {
+                                    Invoke(new Action(() =>
+                                    {
                                         foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "INGRESO EXITOSO (STOCK ACTUALIZADO)");
                                     }));
                                 }
@@ -4966,7 +5114,8 @@ namespace WinFormsApp1
                             catch (Exception ex)
                             {
                                 logIngreso.Add($"[ERROR] Artículo {itemCode} (Ingreso): {ex.Message}");
-                                Invoke(new Action(() => {
+                                Invoke(new Action(() =>
+                                {
                                     foreach (var row in grupoArticulo) row.SetField("EstadoValidacion", "ERROR EN INGRESO");
                                 }));
                             }
@@ -5014,10 +5163,111 @@ namespace WinFormsApp1
 
 
 
+        }
 
+        private void f0_logexportar_Click(object sender, EventArgs e)
+        {
+            if (faseActual == FaseWMS.Ninguna || f0_dgv1.Rows.Count == 0)
+            {
+                MessageBox.Show("No hay datos ni procesos recientes para exportar.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                switch (faseActual)
+                {
+                    case FaseWMS.PreValidacion:
+                        // Exportar solo las filas con error para que el almacén las corrija
+                        ExportarGrillaACSV(soloErrores: true);
+                        break;
+
+                    case FaseWMS.Salida:
+                        // En la Salida Masiva ya guardaste un TXT. Aquí podemos buscar el más reciente y abrirlo.
+                        AbrirUltimoLogTXT("Vaciado");
+                        break;
+
+                    case FaseWMS.Entrada:
+                        // Exportar el 100% de la grilla como evidencia de éxito
+                        ExportarGrillaACSV(soloErrores: false);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al exportar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
 
 
         }
+
+
+        private void ExportarGrillaACSV(bool soloErrores)
+        {
+            SaveFileDialog sfd = new SaveFileDialog()
+            {
+                Filter = "Archivo CSV (*.csv)|*.csv",
+                FileName = $"WMS_Reporte_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            };
+
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                // 1. Escribir Cabeceras
+                var cabeceras = f0_dgv1.Columns.Cast<DataGridViewColumn>().Select(c => c.HeaderText);
+                sb.AppendLine(string.Join(",", cabeceras));
+
+                // 2. Escribir Filas
+                foreach (DataGridViewRow row in f0_dgv1.Rows)
+                {
+                    if (row.IsNewRow) continue;
+
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+
+                    // Si pedimos solo errores y la fila NO es un error, nos la saltamos
+                    if (soloErrores && !estado.StartsWith("ERROR")) continue;
+
+                    var celdas = row.Cells.Cast<DataGridViewCell>().Select(c =>
+                    {
+                        string valor = c.Value?.ToString() ?? "";
+                        // Limpiar comas y saltos de línea para que no rompan el CSV
+                        return "\"" + valor.Replace("\"", "\"\"").Replace("\r", "").Replace("\n", "") + "\"";
+                    });
+
+                    sb.AppendLine(string.Join(",", celdas));
+                }
+
+                File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+                MessageBox.Show("Reporte exportado con éxito.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Abrir automáticamente el archivo
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = sfd.FileName, UseShellExecute = true });
+            }
+        }
+
+
+
+        private void AbrirUltimoLogTXT(string tipoProceso)
+        {
+            // Lógica para encontrar el último .txt generado en el escritorio que contenga la palabra clave en el nombre
+            string escritorio = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            var archivoReciente = Directory.GetFiles(escritorio, $"WMS_Fase0_{tipoProceso}_*.txt")
+                                           .OrderByDescending(f => new FileInfo(f).CreationTime)
+                                           .FirstOrDefault();
+
+            if (archivoReciente != null)
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = archivoReciente, UseShellExecute = true });
+            }
+            else
+            {
+                MessageBox.Show("No se encontró el archivo de log reciente en el escritorio.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+
+
     }
 }

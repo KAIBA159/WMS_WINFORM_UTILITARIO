@@ -90,6 +90,7 @@
             button1 = new Button();
             label6 = new Label();
             label7 = new Label();
+            descripcionOperacion = new Label();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -131,7 +132,7 @@
             tabControl1.Controls.Add(tabPage3);
             tabControl1.Controls.Add(tabPage4);
             tabControl1.Controls.Add(tabPage5);
-            tabControl1.Location = new Point(12, 78);
+            tabControl1.Location = new Point(12, 83);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
             tabControl1.Size = new Size(1059, 674);
@@ -625,6 +626,7 @@
             f0_logexportar.TabIndex = 7;
             f0_logexportar.Text = "Log-exportar";
             f0_logexportar.UseVisualStyleBackColor = true;
+            f0_logexportar.Click += f0_logexportar_Click;
             // 
             // f0_progressBar4
             // 
@@ -710,7 +712,7 @@
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(269, 41);
+            label6.Location = new Point(269, 33);
             label6.Name = "label6";
             label6.Size = new Size(38, 15);
             label6.TabIndex = 25;
@@ -719,11 +721,20 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(528, 41);
+            label7.Location = new Point(551, 33);
             label7.Name = "label7";
             label7.Size = new Size(38, 15);
             label7.TabIndex = 26;
             label7.Text = "label7";
+            // 
+            // descripcionOperacion
+            // 
+            descripcionOperacion.AutoSize = true;
+            descripcionOperacion.Location = new Point(12, 54);
+            descripcionOperacion.Name = "descripcionOperacion";
+            descripcionOperacion.Size = new Size(38, 15);
+            descripcionOperacion.TabIndex = 27;
+            descripcionOperacion.Text = "label9";
             // 
             // lblBaseDatos
             // 
@@ -731,6 +742,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             AutoScroll = true;
             ClientSize = new Size(1184, 749);
+            Controls.Add(descripcionOperacion);
             Controls.Add(label7);
             Controls.Add(label6);
             Controls.Add(textBox1);
@@ -828,5 +840,6 @@
         private Label label8;
         private Button f0_prevalidar;
         private Button f0_logexportar;
+        private Label descripcionOperacion;
     }
 }
