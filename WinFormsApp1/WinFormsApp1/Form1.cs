@@ -1,8 +1,5 @@
 using ExcelDataReader;
-using System.Collections.Concurrent;
 using System.Data;
-using System.IO;
-using System.Reflection.Emit;
 using System.Text;
 using System.Text.Json;
 
@@ -17,10 +14,16 @@ namespace WinFormsApp1
         private int errores = 0;
         private int totalLineasExitosas = 0;
         private int totalLineasFallidas = 0;
+        private DataTable dtExcelFase5;
 
         // Variable global para controlar qué hará el botón Log-exportar
         private enum FaseWMS { Ninguna, PreValidacion, Salida, Entrada }
         private FaseWMS faseActual = FaseWMS.Ninguna;
+
+        // Define a class-level DataTable to hold the Fase 6 data
+        private DataTable dtExcelFase6;
+        private DataTable dtExcelFase7;
+        private string rutaLogFase7 = "";
 
         //string miBaseDatos = "SBO_MAKITA_PE"; // La BD de la sociedad
         //string miUsuario = "manager";
@@ -63,7 +66,7 @@ namespace WinFormsApp1
         //private readonly string dbSchemaGlobal = "SBO_MAKITA_20260717";
         //private readonly string dbSchemaGlobal = "SBO_MAKITA_WMS_080926_1";
 
-        private readonly string dbSchemaGlobal = "TEST_SBO_MAKITA_PE_06102026";
+        private readonly string dbSchemaGlobal = "SBO_MAKITA_PE";
 
 
         // Cadena de conexión pre-ensamblada lista para usarse
@@ -76,7 +79,7 @@ namespace WinFormsApp1
         // ==========================================
         // VARIABLES GLOBALES DE CONEXIÓN SERVICE LAYER (SAP B1)
         // ==========================================
-        private readonly string slBaseDatosGlobal = "TEST_SBO_MAKITA_PE_06102026";
+        private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
         //private readonly string slBaseDatosGlobal = "SBO_MAKITA_WMS_080926_1";
         private readonly string slUsuarioGlobal = "manager";
         private readonly string slClaveGlobal = "m1r1";
@@ -898,7 +901,9 @@ namespace WinFormsApp1
 
         // Función auxiliar para mantener el código limpio
 
-        private async Task<bool> EnviarTransferencia(List<object> lineas, string ubicacion, System.Collections.Concurrent.ConcurrentBag<string> log)
+        private async Task<bool> EnviarTransferencia(List<object> lineas, 
+            string ubicacion, 
+            System.Collections.Concurrent.ConcurrentBag<string> log)
         {
             try
             {
@@ -2689,7 +2694,7 @@ namespace WinFormsApp1
                 int procesadosActuales = 0;
                 label3.Text = $"Paso 2: Iniciando transferencias (0 / {filasValidadas.Count})...";
 
-                using (SemaphoreSlim semaphore = new SemaphoreSlim(1))
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(10))
                 {
                     var tareas = new List<Task>();
 
@@ -5267,7 +5272,1771 @@ namespace WinFormsApp1
             }
         }
 
+        private async void button14_Click_1(object sender, EventArgs e)
+        {
+
+            // 1. Validar que el usuario haya ingresado números (AbsEntry)
+            if (!int.TryParse(txtUbicacionInicio.Text.Trim(), out int idOrigen) ||
+                !int.TryParse(txtUbicacion_Final.Text.Trim(), out int idDestino))
+            {
+                MessageBox.Show("Por favor, ingrese números válidos (AbsEntry) en ambos campos.", "Error WMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (idOrigen == idDestino)
+            {
+                MessageBox.Show("El origen y el destino no pueden ser el mismo número.", "Error WMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. Preparar la Interfaz (Bloquear botón y limpiar grilla)
+            btnPreValidarFase5.Enabled = false; // Ajusta el nombre de tu botón
+            lblText_Informativo.Text = "Consultando SAP HANA...";
+            lblText_Informativo.BackColor = Color.LightGray;
+
+            dgvFase5.Rows.Clear();
+
+            // Opcional: Crear las columnas si no las definiste en el diseñador visual
+            if (dgvFase5.Columns.Count == 0)
+            {
+                dgvFase5.Columns.Add("CodigoArticulo", "Código Artículo");
+                dgvFase5.Columns.Add("Descripcion", "Descripción");
+                dgvFase5.Columns.Add("Cantidad", "Cant. a Mover");
+                dgvFase5.Columns.Add("ManejaLotes", "Usa Lotes");
+                dgvFase5.Columns.Add("ManejaSeries", "Usa Series");
+            }
+
+            try
+            {
+                // 3. Ejecutar las consultas en un hilo secundario para no congelar la pantalla
+                await Task.Run(() =>
+                {
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+
+                        // --- CONSULTA A: Validar que el destino exista estructuralmente ---
+                        string queryDestino = $"SELECT \"BinCode\" FROM OBIN WHERE \"AbsEntry\" = {idDestino}";
+                        string nombreDestino = "";
+
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryDestino, conn))
+                        {
+                            var result = cmd.ExecuteScalar();
+                            if (result == null)
+                            {
+                                // Si devuelve null, el usuario tecleó un AbsEntry que no existe en SAP
+                                throw new Exception($"La ubicación de destino con AbsEntry [{idDestino}] no existe en SAP.");
+                            }
+                            nombreDestino = result.ToString();
+                        }
+
+                        // --- CONSULTA B: Extraer todo el stock físico del origen ---
+                        // Nota: Usamos BinAbs = {idOrigen} en lugar de BinCode
+                        string queryStock = $@"
+                    SELECT 
+                        T1.""ItemCode"", 
+                        T2.""ItemName"", 
+                        T1.""OnHandQty"",
+                        T2.""ManBtchNum"",
+                        T2.""ManSerNum""
+                    FROM OIBQ T1
+                    INNER JOIN OITM T2 ON T1.""ItemCode"" = T2.""ItemCode""
+                    WHERE T1.""BinAbs"" = {idOrigen} 
+                      AND T1.""OnHandQty"" > 0";
+
+                        int filasEncontradas = 0;
+
+                        using (var cmdStock = new System.Data.Odbc.OdbcCommand(queryStock, conn))
+                        using (var reader = cmdStock.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string itemCode = reader.GetString(0);
+                                string itemName = reader.GetString(1);
+                                decimal qty = reader.GetDecimal(2);
+                                string lotes = reader.GetString(3);
+                                string series = reader.GetString(4);
+
+                                // Como estamos en un hilo secundario, usamos Invoke para dibujar en la pantalla
+                                Invoke(new Action(() =>
+                                {
+                                    dgvFase5.Rows.Add(itemCode, itemName, qty, lotes, series);
+                                }));
+                                filasEncontradas++;
+                            }
+                        }
+
+                        // 4. Actualizar el veredicto final en la pantalla
+                        Invoke(new Action(() =>
+                        {
+                            if (filasEncontradas > 0)
+                            {
+                                lblText_Informativo.Text = $"¡Validado! Destino '{nombreDestino}' OK. Se encontraron {filasEncontradas} artículos listos para trasladar.";
+                                lblText_Informativo.BackColor = Color.LightGreen;
+                            }
+                            else
+                            {
+                                lblText_Informativo.Text = $"La ubicación de origen está vacía. No hay stock para mover.";
+                                lblText_Informativo.BackColor = Color.LightGoldenrodYellow;
+                            }
+                        }));
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // En caso de error (ej. el destino no existe), lo mostramos en pantalla
+                Invoke(new Action(() =>
+                {
+                    lblText_Informativo.Text = "Error en validación. Revise los AbsEntry.";
+                    lblText_Informativo.BackColor = Color.LightCoral;
+                    MessageBox.Show(ex.Message, "WMS Makita - Alerta", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+            }
+            finally
+            {
+                // Reactivamos el botón al terminar
+                btnPreValidarFase5.Enabled = true;
+            }
 
 
+        }
+
+        private async void btnPreValidarFase5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+
+        private async void btnIniciarTraslado_Click(object sender, EventArgs e)
+        {
+            if (dgvFase5.Rows.Count == 0) return;
+
+            int idOrigen = Convert.ToInt32(txtUbicacionInicio.Text.Trim());
+            int idDestino = Convert.ToInt32(txtUbicacion_Final.Text.Trim());
+
+            btnIniciarTraslado.Enabled = false;
+            button14.Enabled = false;
+            lblText_Informativo.Text = "Obteniendo datos de Series/Lotes desde HANA...";
+            lblText_Informativo.BackColor = Color.LightSkyBlue;
+
+            int documentosExitosos = 0;
+            int documentosFallidos = 0;
+            int lineasProcesadas = 0;
+            System.Collections.Concurrent.ConcurrentBag<string> logErrores = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+            try
+            {
+                // ====================================================================
+                // PASO 0: Extraer el detalle de Series para los artículos del Pulmón
+                // ====================================================================
+                DataTable dtStockDetalle = new DataTable();
+                string queryDetalle = $@"
+            SELECT 
+                T1.""ItemCode"", 
+                T3.""ManSerNum"", 
+                T4.""SysNumber"",
+                T2.""OnHandQty""
+            FROM OIBQ T1 
+            INNER JOIN OITM T3 ON T1.""ItemCode"" = T3.""ItemCode"" 
+            LEFT JOIN OSBQ T2 ON T1.""ItemCode"" = T2.""ItemCode"" AND T1.""BinAbs"" = T2.""BinAbs"" AND T2.""OnHandQty"" > 0 
+            LEFT JOIN OSRN T4 ON T2.""SnBMDAbs"" = T4.""AbsEntry"" 
+            WHERE T1.""BinAbs"" = {idOrigen} AND T1.""OnHandQty"" > 0;";
+
+                await Task.Run(() =>
+                {
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryDetalle, conn))
+                        using (var da = new System.Data.Odbc.OdbcDataAdapter(cmd))
+                        {
+                            da.Fill(dtStockDetalle);
+                        }
+                    }
+                });
+
+                lblText_Informativo.Text = "Iniciando traslado masivo (Modo Turbo: 10 hilos)...";
+
+                // ====================================================================
+                // PASO 1: Armar la lista maestra 
+                // ====================================================================
+                List<object> lineasTransferenciaMaster = new List<object>();
+
+                foreach (DataGridViewRow row in dgvFase5.Rows)
+                {
+                    if (row.IsNewRow) continue;
+
+                    string itemCode = row.Cells[0].Value.ToString();
+                    double cantidad = Convert.ToDouble(row.Cells[2].Value);
+                    string usaLotes = row.Cells[3].Value?.ToString() ?? "N";
+                    string usaSeries = row.Cells[4].Value?.ToString() ?? "N";
+
+                    // --- CASO 1: Artículo Normal ---
+                    if (usaLotes == "N" && usaSeries == "N")
+                    {
+                        var allocs = new List<object>
+                {
+                    new { BinAbsEntry = idOrigen, Quantity = cantidad, AllowNegativeQuantity = "tNO", BinActionType = "batFromWarehouse" },
+                    new { BinAbsEntry = idDestino, Quantity = cantidad, AllowNegativeQuantity = "tNO", BinActionType = "batToWarehouse" }
+                };
+
+                        lineasTransferenciaMaster.Add(new { ItemCode = itemCode, Quantity = cantidad, WarehouseCode = "ALM01", FromWarehouseCode = "ALM01", StockTransferLinesBinAllocations = allocs });
+                    }
+                    // --- CASO 2: Artículo con Series ---
+                    else if (usaSeries == "Y")
+                    {
+                        var seriesDelArticulo = dtStockDetalle.AsEnumerable()
+                                                .Where(r => r["ItemCode"].ToString() == itemCode && r["SysNumber"] != DBNull.Value)
+                                                .ToList();
+
+                        if (seriesDelArticulo.Count == 0) continue;
+
+                        var listaSeries = new List<object>();
+                        var allocs = new List<object>();
+                        int serialIndex = 0;
+                        double cantidadTotalItem = 0;
+
+                        foreach (var sRow in seriesDelArticulo)
+                        {
+                            double qtySerie = Convert.ToDouble(sRow["OnHandQty"]);
+                            cantidadTotalItem += qtySerie;
+
+                            // El nodo que exige SAP para mover una serie
+                            listaSeries.Add(new { SystemSerialNumber = Convert.ToInt32(sRow["SysNumber"]), Quantity = qtySerie });
+
+                            // Las ubicaciones ahora exigen saber el índice de la serie
+                            allocs.Add(new { BinAbsEntry = idOrigen, Quantity = qtySerie, AllowNegativeQuantity = "tNO", SerialAndBatchNumbersBaseLine = serialIndex, BinActionType = "batFromWarehouse" });
+                            allocs.Add(new { BinAbsEntry = idDestino, Quantity = qtySerie, AllowNegativeQuantity = "tNO", SerialAndBatchNumbersBaseLine = serialIndex, BinActionType = "batToWarehouse" });
+
+                            serialIndex++;
+                        }
+
+                        lineasTransferenciaMaster.Add(new
+                        {
+                            ItemCode = itemCode,
+                            Quantity = cantidadTotalItem,
+                            WarehouseCode = "ALM01",
+                            FromWarehouseCode = "ALM01",
+                            SerialNumbers = listaSeries,
+                            StockTransferLinesBinAllocations = allocs
+                        });
+                    }
+                    else
+                    {
+                        // Artículos con LOTES (ManBtchNum = Y) se omiten por ahora
+                        logErrores.Add($"[{DateTime.Now:HH:mm:ss}] Artículo {itemCode} exige Lotes. Se omitió.");
+                    }
+                }
+
+                if (lineasTransferenciaMaster.Count == 0)
+                {
+                    MessageBox.Show("No se armó ninguna transferencia. Revise si los artículos son gestionados por Lotes (aún no soportados).", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // ====================================================================
+                // PASO 2: Agrupar en lotes de 150
+                // ====================================================================
+                int tamañoLote = 150;
+                var bloquesDeTransferencia = new List<List<object>>();
+                for (int i = 0; i < lineasTransferenciaMaster.Count; i += tamañoLote)
+                {
+                    bloquesDeTransferencia.Add(lineasTransferenciaMaster.Skip(i).Take(tamañoLote).ToList());
+                }
+
+                int totalBloques = bloquesDeTransferencia.Count;
+                int bloquesCompletados = 0;
+
+                // ====================================================================
+                // PASO 3: Ejecución Multihilo (10 Hilos)
+                // ====================================================================
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(10))
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var bloque in bloquesDeTransferencia)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            try
+                            {
+                                bool exito = await EnviarTransferencia(bloque, $"Migración Fase 5 hacia Bin {idDestino}", logErrores);
+
+                                if (exito)
+                                {
+                                    System.Threading.Interlocked.Increment(ref documentosExitosos);
+                                    System.Threading.Interlocked.Add(ref lineasProcesadas, bloque.Count);
+                                }
+                                else
+                                {
+                                    System.Threading.Interlocked.Increment(ref documentosFallidos);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Threading.Interlocked.Increment(ref documentosFallidos);
+                                logErrores.Add($"[{DateTime.Now:HH:mm:ss}] Error en bloque: {ex.Message}");
+                            }
+                            finally
+                            {
+                                int procesadosLocal = System.Threading.Interlocked.Increment(ref bloquesCompletados);
+                                Invoke(new Action(() =>
+                                {
+                                    lblText_Informativo.Text = $"Transfiriendo... {procesadosLocal} de {totalBloques} bloques enviados.";
+                                }));
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+
+                // ====================================================================
+                // PASO 4: Veredicto
+                // ====================================================================
+                if (documentosFallidos > 0 || logErrores.Count > 0)
+                {
+                    string ruta = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_Fase5_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    System.IO.File.WriteAllLines(ruta, logErrores);
+                    MessageBox.Show($"Migración finalizada con observaciones.\n\nDoc. Exitosos: {documentosExitosos}\nArtículos Movidos: {lineasProcesadas}\n\nRevise el LOG en el escritorio.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    lblText_Informativo.BackColor = Color.Orange;
+                }
+                else
+                {
+                    MessageBox.Show($"¡MIGRACIÓN MASIVA EXITOSA!\n\nSe trasladaron los {lineasProcesadas} artículos en tiempo récord.\nDocumentos en SAP: {documentosExitosos}", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    lblText_Informativo.Text = "¡Traslado completado al 100%!";
+                    lblText_Informativo.BackColor = Color.LightGreen;
+                    dgvFase5.Rows.Clear();
+                    txtUbicacionInicio.Clear();
+                    txtUbicacion_Final.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error crítico en el orquestador: {ex.Message}", "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnIniciarTraslado.Enabled = true;
+                button14.Enabled = true;
+            }
+        }
+
+        private async void f0_SoloActivarLotes_Click(object sender, EventArgs e)
+        {
+
+            // =========================================================================
+            // 1. VALIDACIÓN BÁSICA DE LA GRILLA
+            // =========================================================================
+            if (dtExcelFase0 == null || dtExcelFase0.Rows.Count == 0 || !dtExcelFase0.Columns.Contains("EstadoValidacion"))
+            {
+                MessageBox.Show("Primero debes importar el Excel.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // A diferencia de la Salida Masiva, aquí NO bloqueamos si hay errores de descuadre.
+            // Asumimos que si el usuario aprieta este botón, es porque el stock ya está en cero 
+            // en SAP (por DTW o ajuste manual) y solo quiere forzar la configuración a "Lote".
+
+            // Agrupamos TODOS los artículos de la grilla para procesarlos (usando el índice 1 que corresponde a Nro Artículo)
+            var agrupacionPorArticulo = dtExcelFase0.AsEnumerable()
+                .GroupBy(r => r[1].ToString().Trim().ToUpper())
+                .ToList();
+
+            // =========================================================================
+            // 2. PREPARACIÓN DE INTERFAZ Y LOGS
+            // =========================================================================
+            Button btnActual = (Button)sender;
+            btnActual.Enabled = false;
+            f0_progressBar4.Visible = true;
+            f0_progressBar4.Style = ProgressBarStyle.Marquee;
+
+            var logLotes = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logLotes.Add("--- INICIO DE ACTIVACIÓN FORZADA DE LOTES (SÓLO CONFIGURACIÓN) ---");
+            logLotes.Add($"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logLotes.Add("----------------------------------------------------------------------");
+
+            int exitosos = 0;
+            int fallidos = 0;
+            int omitidos = 0;
+
+            try
+            {
+                // =========================================================================
+                // 3. MOTOR DE ACTIVACIÓN MULTIHILO (10 peticiones simultáneas)
+                // =========================================================================
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(10))
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var grupo in agrupacionPorArticulo)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            string itemCode = grupo.Key;
+
+                            try
+                            {
+                                // PASO A: DETECTAR SI EL ARTÍCULO YA ES "LOTE" EN SAP
+                                string isBatch = "N";
+                                using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                                {
+                                    conn.Open();
+                                    string queryLoteActivo = $"SELECT \"ManBtchNum\" FROM OITM WHERE \"ItemCode\" = '{itemCode}'";
+                                    using (var cmd = new System.Data.Odbc.OdbcCommand(queryLoteActivo, conn))
+                                    {
+                                        var result = cmd.ExecuteScalar();
+                                        if (result != null && result != DBNull.Value) isBatch = result.ToString();
+                                    }
+                                }
+
+                                // PASO B: DISPARAR EL PATCH AL SERVICE LAYER (Activación)
+                                if (isBatch == "N")
+                                {
+                                    string jsonPatchItem = @"{ ""ManageBatchNumbers"": ""tYES"", ""ManageSerialNumbers"": ""tNO"", ""IssuePrimarilyBy"": ""ipbSerialAndBatchNumbers"" }";
+                                    var contentPatch = new StringContent(jsonPatchItem, System.Text.Encoding.UTF8, "application/json");
+
+                                    var responsePatch = await client.PatchAsync(slUrlBaseGlobal + $"Items('{itemCode}')", contentPatch);
+
+                                    if (!responsePatch.IsSuccessStatusCode)
+                                    {
+                                        string errorDetalle = await responsePatch.Content.ReadAsStringAsync();
+                                        throw new Exception(errorDetalle);
+                                    }
+
+                                    logLotes.Add($"[ÉXITO] Artículo {itemCode} actualizado a 'Lotes'.");
+                                    System.Threading.Interlocked.Increment(ref exitosos);
+
+                                    // Actualizar la grilla en el hilo principal
+                                    Invoke(new Action(() => { foreach (var row in grupo) row["EstadoValidacion"] = "ACTIVADO FORZADO"; }));
+                                }
+                                else
+                                {
+                                    logLotes.Add($"[INFO] Artículo {itemCode} ya usaba Lotes. Se omite el PATCH.");
+                                    System.Threading.Interlocked.Increment(ref omitidos);
+
+                                    Invoke(new Action(() => { foreach (var row in grupo) row["EstadoValidacion"] = "YA ERA LOTE"; }));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                // Si falla (ej. SAP devuelve el error -5002 porque todavía hay stock o pedidos abiertos)
+                                logLotes.Add($"[ERROR] Artículo {itemCode}: {ex.Message}");
+                                System.Threading.Interlocked.Increment(ref fallidos);
+
+                                Invoke(new Action(() => { foreach (var row in grupo) row["EstadoValidacion"] = "ERROR: BLOQUEO SAP"; }));
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+
+                    // Esperar a que todos los hilos terminen
+                    await Task.WhenAll(tareas);
+                }
+
+                // =========================================================================
+                // 4. FEEDBACK VISUAL Y GENERACIÓN DE LOG
+                // =========================================================================
+                f0_dgv1.Refresh();
+
+                foreach (DataGridViewRow row in f0_dgv1.Rows)
+                {
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+                    if (estado.Contains("ACTIVADO") || estado.Contains("YA ERA LOTE"))
+                        row.DefaultCellStyle.BackColor = Color.LimeGreen;
+                    else if (estado.Contains("ERROR"))
+                        row.DefaultCellStyle.BackColor = Color.LightCoral;
+                }
+
+                MessageBox.Show($"Proceso de Activación Forzada finalizado.\n\n• Convertidos exitosamente: {exitosos}\n• Omitidos (Ya eran Lotes): {omitidos}\n• Bloqueados por SAP: {fallidos}\n\nSi hubo bloqueos, revise el Log en su escritorio. (Recuerde que SAP bloquea la activación si el artículo aún tiene Stock > 0 o Pedidos Abiertos).", "Reporte WMS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error crítico en la ejecución multihilo: " + ex.Message, "Fallo de Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnActual.Enabled = true;
+                f0_progressBar4.Visible = false;
+
+                // Escribir el log físico en el escritorio
+                string rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"WMS_SoloActivarLotes_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logLotes);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+            }
+
+
+        }
+
+        private async void btnImportarSoloLotes_Click(object sender, EventArgs e)
+        {
+
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el archivo de Códigos para Activar Lotes";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    // 1. Bloqueo de UI
+                    Button btnActual = (Button)sender;
+                    btnActual.Enabled = false;
+                    f0_progressBar4.Style = ProgressBarStyle.Marquee;
+                    f0_progressBar4.Visible = true;
+
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // 2. Hilo secundario para lectura del Excel (A prueba de caídas)
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0]; // Lee la hoja activa (Ej. "ACTIVAR")
+
+                                // 3. Estructura minimalista requerida para el botón de activación
+                                // Índice 0 = Nro, Índice 1 = ItemCode, Índice 2 = EstadoValidacion
+                                dtExcelFase0 = new DataTable();
+                                dtExcelFase0.Columns.Add("Nro", typeof(int));
+                                dtExcelFase0.Columns.Add("ItemCode", typeof(string));
+                                dtExcelFase0.Columns.Add("EstadoValidacion", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    // Escudo 1: Si la fila no tiene columnas, saltar
+                                    if (row.ItemArray.Length == 0) continue;
+
+                                    // Extraemos estrictamente solo la Columna A (Índice 0)
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+
+                                    // Escudo 2: Ignorar celdas vacías o el encabezado si se filtró por error
+                                    if (string.IsNullOrEmpty(itemCode) || itemCode.ToUpper() == "CODIGO")
+                                        continue;
+
+                                    // Inyección a la matriz
+                                    dtExcelFase0.Rows.Add(
+                                        contadorFila,
+                                        itemCode.ToUpper(), // Aseguramos mayúsculas para la búsqueda en SAP
+                                        "Listo para Activar"
+                                    );
+
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // 4. Volcado al DataGridView en el hilo principal
+                    f0_dgv1.DataSource = null;
+                    f0_dgv1.Columns.Clear();
+                    f0_dgv1.DataSource = dtExcelFase0;
+
+                    // Formateo visual
+                    f0_dgv1.Columns["Nro"].HeaderText = "#";
+                    f0_dgv1.Columns["Nro"].Width = 50;
+                    f0_dgv1.Columns["Nro"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+                    f0_dgv1.Columns["ItemCode"].HeaderText = "Código de Artículo";
+                    f0_dgv1.Columns["ItemCode"].Width = 200;
+
+                    f0_dgv1.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    f0_dgv1.Columns["EstadoValidacion"].Width = 300;
+
+                    f0_progressBar4.Style = ProgressBarStyle.Blocks;
+                    f0_progressBar4.Value = 100;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel de 1 columna: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    // Restaurar UI
+                    ((Button)sender).Enabled = true;
+                    f0_progressBar4.Visible = false;
+                }
+            }
+
+
+
+
+        }
+
+        private void tabPage6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private async void f6_btnPreValidar_Click(object sender, EventArgs e)
+        {
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el archivo de Topología Estructural (Fase 6)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Button btnActual = (Button)sender;
+                btnActual.Enabled = false;
+                // Assuming you have a progress bar named f6_progressBar
+                if (f6_progressBar != null) { f6_progressBar.Style = ProgressBarStyle.Marquee; f6_progressBar.Visible = true; }
+
+                try
+                {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0];
+
+                                // Prepare the structure for the Grid
+                                dtExcelFase6 = new DataTable();
+                                dtExcelFase6.Columns.Add("Nro", typeof(int));
+                                dtExcelFase6.Columns.Add("UbicacionCompleta", typeof(string));
+                                dtExcelFase6.Columns.Add("Almacen", typeof(string)); // Extracted from Column A
+                                dtExcelFase6.Columns.Add("Fila", typeof(string));
+                                dtExcelFase6.Columns.Add("Cuerpo", typeof(string));
+                                dtExcelFase6.Columns.Add("Piso", typeof(string));
+                                dtExcelFase6.Columns.Add("Fondo", typeof(string));
+                                dtExcelFase6.Columns.Add("Estado", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    if (row.ItemArray.Length < 5) continue; // Ensure we have at least up to FONDO
+
+                                    string ubicacionOriginal = row[0]?.ToString().Trim() ?? "";
+                                    string fila = row[1]?.ToString().Trim() ?? "";
+                                    string cuerpo = row[2]?.ToString().Trim() ?? "";
+                                    string piso = row[3]?.ToString().Trim() ?? "";
+                                    string fondo = row[4]?.ToString().Trim() ?? "";
+
+                                    if (string.IsNullOrEmpty(ubicacionOriginal) || ubicacionOriginal.ToUpper().Contains("UBICACIÓN"))
+                                        continue;
+
+                                    // Extract Warehouse code (e.g., "ALM01" from "ALM01-D-01-05-01")
+                                    string almacen = ubicacionOriginal.Split('-')[0];
+                                    // Create the exact BinCode SAP expects (no dashes)
+                                    string ubicacionLimpia = ubicacionOriginal.Replace("-", "");
+
+                                    dtExcelFase6.Rows.Add(
+                                        contadorFila,
+                                        ubicacionLimpia,
+                                        almacen,
+                                        fila,
+                                        cuerpo,
+                                        piso,
+                                        fondo,
+                                        "Pendiente de Creación"
+                                    );
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // Bind to UI
+                    dgvFase6.DataSource = null;
+                    dgvFase6.Columns.Clear();
+                    dgvFase6.DataSource = dtExcelFase6;
+
+                    // Basic formatting
+                    dgvFase6.Columns["Nro"].Width = 40;
+                    dgvFase6.Columns["UbicacionCompleta"].Width = 150;
+                    dgvFase6.Columns["Estado"].Width = 200;
+
+                    if (f6_progressBar != null) { f6_progressBar.Style = ProgressBarStyle.Blocks; f6_progressBar.Value = 100; }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    btnActual.Enabled = true;
+                    if (f6_progressBar != null) f6_progressBar.Visible = false;
+                }
+            }
+
+
+        }
+
+        private async void f6_btnCrearSubni_Click(object sender, EventArgs e)
+        {
+            if (dtExcelFase6 == null || dtExcelFase6.Rows.Count == 0)
+            {
+                MessageBox.Show("Por favor, importe y valide el archivo primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Button btnActual = (Button)sender;
+            btnActual.Enabled = false;
+
+            int creados = 0;
+            int existentes = 0;
+            int errores = 0;
+
+            // 1. Inicializamos el Log seguro para multihilos
+            var logSubniveles = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logSubniveles.Add("--- REPORTE DE CREACIÓN DE SUBNIVELES ---");
+            logSubniveles.Add($"Fecha de ejecución: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logSubniveles.Add("---------------------------------------------------------");
+
+            try
+            {
+                // =====================================================================
+                // A. EXTRAER Y AGRUPAR LOS SUBNIVELES (AQUÍ NACE LA VARIABLE)
+                // =====================================================================
+                var subniveles = new List<Tuple<int, string>>();
+
+                // Leemos la grilla y extraemos las columnas Fila, Cuerpo, Piso y Fondo
+                foreach (DataRow row in dtExcelFase6.Rows)
+                {
+                    subniveles.Add(new Tuple<int, string>(1, row["Fila"].ToString()));
+                    subniveles.Add(new Tuple<int, string>(2, row["Cuerpo"].ToString()));
+                    subniveles.Add(new Tuple<int, string>(3, row["Piso"].ToString()));
+                    subniveles.Add(new Tuple<int, string>(4, row["Fondo"].ToString()));
+                }
+
+                // Filtramos para quedarnos solo con los únicos (sin repetir) y que no estén vacíos
+                var subnivelesUnicos = subniveles.Distinct().Where(s => !string.IsNullOrEmpty(s.Item2)).ToList();
+
+                // =====================================================================
+                // B. BUCLE MULTIHILO (AQUÍ SE USA LA VARIABLE 'sub')
+                // =====================================================================
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(5)) // 5 hilos trabajando al mismo tiempo
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var sub in subnivelesUnicos)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            try
+                            {
+                                int nivelId = sub.Item1; // Puede ser 1, 2, 3 o 4
+                                string codigoSubnivel = sub.Item2; // Ej. "D", "01", "05"
+
+                                // Armamos el JSON
+                                var payload = new
+                                {
+                                    Code = codigoSubnivel
+                                };
+
+                                string jsonStr = System.Text.Json.JsonSerializer.Serialize(payload);
+                                var content = new StringContent(jsonStr, System.Text.Encoding.UTF8, "application/json");
+
+                                // Seleccionamos el Endpoint correcto según el Nivel
+                                string endpoint = "";
+                                switch (nivelId)
+                                {
+                                    case 1: endpoint = "WarehouseSublevel1Codes"; break;
+                                    case 2: endpoint = "WarehouseSublevel2Codes"; break;
+                                    case 3: endpoint = "WarehouseSublevel3Codes"; break;
+                                    case 4: endpoint = "WarehouseSublevel4Codes"; break;
+                                    default: throw new Exception("Nivel de subnivel no soportado.");
+                                }
+
+                                // Enviamos el POST a SAP
+                                var response = await client.PostAsync(slUrlBaseGlobal + endpoint, content);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    System.Threading.Interlocked.Increment(ref creados);
+                                    logSubniveles.Add($"[{DateTime.Now:HH:mm:ss}] [ÉXITO] Subnivel L{nivelId} - Código '{codigoSubnivel}' creado en {endpoint}.");
+                                }
+                                else
+                                {
+                                    string err = await response.Content.ReadAsStringAsync();
+
+                                    // Si el código ya existe, es un aviso, no un error grave
+                                    if (err.Contains("-2035") || err.Contains("already exists"))
+                                    {
+                                        System.Threading.Interlocked.Increment(ref existentes);
+                                        logSubniveles.Add($"[{DateTime.Now:HH:mm:ss}] [INFO] Subnivel L{nivelId} - Código '{codigoSubnivel}' ya existía. Se omitió.");
+                                    }
+                                    else
+                                    {
+                                        System.Threading.Interlocked.Increment(ref errores);
+                                        logSubniveles.Add($"[{DateTime.Now:HH:mm:ss}] [ERROR] Subnivel L{nivelId} - Código '{codigoSubnivel}': {err}");
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Threading.Interlocked.Increment(ref errores);
+                                logSubniveles.Add($"[{DateTime.Now:HH:mm:ss}] [EXCEPCIÓN] Subnivel L{sub.Item1} - Código '{sub.Item2}': {ex.Message}");
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+
+                // =====================================================================
+                // C. GENERAR ARCHIVO DE LOG EN ESCRITORIO
+                // =====================================================================
+                string rutaLog = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_WMS_Subniveles_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                System.IO.File.WriteAllLines(rutaLog, logSubniveles);
+
+                MessageBox.Show($"Proceso de Subniveles Finalizado.\n\nNuevos Creados: {creados}\nYa Existentes: {existentes}\nErrores: {errores}\n\nRevise el archivo de Log generado en su escritorio para más detalles.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Abrir el log automáticamente
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error crítico: {ex.Message}", "Fallo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnActual.Enabled = true;
+            }
+        }
+
+
+
+        private async void f6_btnCrear_Click(object sender, EventArgs e)
+        {
+            if (dtExcelFase6 == null || dtExcelFase6.Rows.Count == 0)
+            {
+                MessageBox.Show("Por favor, importe y valide el archivo primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Button btnActual = (Button)sender;
+            btnActual.Enabled = false;
+
+            int creadas = 0;
+            int actualizadas = 0;
+            int fallidas = 0;
+
+            // Log seguro para multihilos
+            var logUbicaciones = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logUbicaciones.Add("--- REPORTE DE SINCRONIZACIÓN DE UBICACIONES (CREACIÓN / ACTUALIZACIÓN) ---");
+            logUbicaciones.Add($"Fecha de ejecución: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logUbicaciones.Add("-------------------------------------------------------------------------");
+
+            try
+            {
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(5)) // 5 hilos trabajando al mismo tiempo
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (DataGridViewRow gridRow in dgvFase6.Rows)
+                    {
+                        if (gridRow.IsNewRow) continue;
+
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            string ubicacion = gridRow.Cells["UbicacionCompleta"].Value.ToString();
+                            try
+                            {
+                                // =========================================================================
+                                // 1. CONSULTAR A HANA SI LA UBICACIÓN YA EXISTE (Buscamos su AbsEntry)
+                                // =========================================================================
+                                int? idUbicacionExistente = null;
+
+                                using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                                {
+                                    conn.Open();
+                                    // Buscamos el código limpio (Ej. ALM01D010501) en OBIN
+                                    string queryVerificar = $"SELECT \"AbsEntry\" FROM OBIN WHERE \"BinCode\" = '{ubicacion}'";
+                                    using (var cmd = new System.Data.Odbc.OdbcCommand(queryVerificar, conn))
+                                    {
+                                        var result = cmd.ExecuteScalar();
+                                        if (result != null && result != DBNull.Value)
+                                        {
+                                            idUbicacionExistente = Convert.ToInt32(result);
+                                        }
+                                    }
+                                }
+
+                                // =========================================================================
+                                // 2. ÁRBOL DE DECISIÓN: ¿ACTUALIZAR O CREAR?
+                                // =========================================================================
+                                if (idUbicacionExistente.HasValue)
+                                {
+                                    // -------------------------------------------------------------
+                                    // RUTA A: YA EXISTE -> ENVIAR 'PATCH' PARA ACTUALIZAR EL CAMPO
+                                    // -------------------------------------------------------------
+                                    //var payloadUpdate = new { U_WAR_DW_TYPE_LOCATION = "3" };
+
+
+                                    var payloadUpdate = new
+                                    {
+                                        U_WAR_DW_TYPE_LOCATION = "3",
+                                        Inactive = "tNO" // ¡NUEVA LÍNEA! Fuerza a que se quite el check de inactivo si lo tuviera
+                                    };
+
+
+
+
+                                    string jsonUpdate = System.Text.Json.JsonSerializer.Serialize(payloadUpdate);
+                                    var contentUpdate = new StringContent(jsonUpdate, System.Text.Encoding.UTF8, "application/json");
+
+                                    // Hacemos PATCH apuntando directamente al AbsEntry
+                                    var response = await client.PatchAsync(slUrlBaseGlobal + $"BinLocations({idUbicacionExistente.Value})", contentUpdate);
+
+                                    if (response.IsSuccessStatusCode)
+                                    {
+                                        System.Threading.Interlocked.Increment(ref actualizadas);
+                                        logUbicaciones.Add($"[{DateTime.Now:HH:mm:ss}] [ACTUALIZADA] '{ubicacion}' actualizada a Reserva (Tipo 3).");
+
+                                        Invoke(new Action(() =>
+                                        {
+                                            gridRow.Cells["Estado"].Value = "ACTUALIZADO";
+                                            gridRow.DefaultCellStyle.BackColor = Color.LightSkyBlue;
+                                        }));
+                                    }
+                                    else
+                                    {
+                                        string err = await response.Content.ReadAsStringAsync();
+                                        throw new Exception($"Fallo al actualizar: {err}");
+                                    }
+                                }
+                                else
+                                {
+                                    // -------------------------------------------------------------
+                                    // RUTA B: NO EXISTE -> ENVIAR 'POST' PARA CREARLA DESDE CERO
+                                    // -------------------------------------------------------------
+                                    var payloadCreate = new
+                                    {
+                                        Warehouse = gridRow.Cells["Almacen"].Value.ToString(),
+                                        Sublevel1 = gridRow.Cells["Fila"].Value.ToString(),
+                                        Sublevel2 = gridRow.Cells["Cuerpo"].Value.ToString(),
+                                        Sublevel3 = gridRow.Cells["Piso"].Value.ToString(),
+                                        Sublevel4 = gridRow.Cells["Fondo"].Value.ToString(),
+                                        U_WAR_DW_TYPE_LOCATION = "3"
+                                    };
+
+                                    string jsonCreate = System.Text.Json.JsonSerializer.Serialize(payloadCreate);
+                                    var contentCreate = new StringContent(jsonCreate, System.Text.Encoding.UTF8, "application/json");
+
+                                    var response = await client.PostAsync(slUrlBaseGlobal + "BinLocations", contentCreate);
+
+                                    if (response.IsSuccessStatusCode)
+                                    {
+                                        System.Threading.Interlocked.Increment(ref creadas);
+                                        logUbicaciones.Add($"[{DateTime.Now:HH:mm:ss}] [CREADA] '{ubicacion}' creada desde cero como Reserva.");
+
+                                        Invoke(new Action(() =>
+                                        {
+                                            gridRow.Cells["Estado"].Value = "CREADO NUEVO";
+                                            gridRow.DefaultCellStyle.BackColor = Color.LightGreen;
+                                        }));
+                                    }
+                                    else
+                                    {
+                                        string err = await response.Content.ReadAsStringAsync();
+                                        throw new Exception($"Fallo al crear: {err}");
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Threading.Interlocked.Increment(ref fallidas);
+                                logUbicaciones.Add($"[{DateTime.Now:HH:mm:ss}] [ERROR] Ubicación '{ubicacion}': {ex.Message}");
+
+                                Invoke(new Action(() =>
+                                {
+                                    gridRow.Cells["Estado"].Value = "ERROR";
+                                    gridRow.DefaultCellStyle.BackColor = Color.LightCoral;
+                                }));
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+
+                // 3. Escribir Log en el escritorio
+                string rutaLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_WMS_Sincronizacion_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                File.WriteAllLines(rutaLog, logUbicaciones);
+
+                MessageBox.Show($"Sincronización Finalizada.\n\nNuevas Creadas: {creadas}\nExistentes Actualizadas: {actualizadas}\nErrores: {fallidas}\n\nRevise el Log en su escritorio.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo() { FileName = rutaLog, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error crítico en el orquestador: {ex.Message}", "Fallo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnActual.Enabled = true;
+            }
+        }
+
+        private void btnImportarExcelFas5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private async void Importar_Excel_F5(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el Layout de Destinos (Fase 5)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Button btnActual = (Button)sender;
+                btnActual.Enabled = false;
+
+                try
+                {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // Hilo secundario para leer el Excel rápido y sin congelar la UI
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0]; // Lee la hoja "DATAMASTER"
+
+                                // 1. CREAMOS LA TABLA EN MEMORIA (DataTable), NO EL CONTROL VISUAL
+                                dtExcelFase5 = new DataTable();
+                                dtExcelFase5.Columns.Add("Nro", typeof(int));
+                                dtExcelFase5.Columns.Add("CodigoArticulo", typeof(string));
+                                dtExcelFase5.Columns.Add("UbicacionDestino", typeof(string));
+                                dtExcelFase5.Columns.Add("CantidadSAP", typeof(decimal)); // Se llenará en la pre-validación
+                                dtExcelFase5.Columns.Add("EstadoValidacion", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    if (row.ItemArray.Length < 2) continue; // Escudo por si hay filas rotas
+
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string destino = row[1]?.ToString().Trim() ?? "";
+
+                                    // Filtramos filas vacías o si leyó el encabezado por error
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(destino) || itemCode.ToUpper() == "CODIGO")
+                                        continue;
+
+                                    // Llenamos la memoria
+                                    dtExcelFase5.Rows.Add(
+                                        contadorFila,
+                                        itemCode.ToUpper(),
+                                        destino.ToUpper(),
+                                        0, // Inicia en 0, HANA dirá la verdad en el botón preValidar
+                                        "Pendiente de Validación"
+                                    );
+
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // 2. CONECTAMOS LA MEMORIA A LA VISTA (DataGridView)
+                    dgvFase5.DataSource = null;
+                    dgvFase5.Columns.Clear();
+                    dgvFase5.DataSource = dtExcelFase5; // Aquí inyectamos la data al control visual
+
+                    // 3. Formateo estético de la grilla visual
+                    dgvFase5.Columns["Nro"].Width = 40;
+                    dgvFase5.Columns["CodigoArticulo"].HeaderText = "Código de Artículo";
+                    dgvFase5.Columns["CodigoArticulo"].Width = 150;
+
+                    dgvFase5.Columns["UbicacionDestino"].HeaderText = "Destino Solicitado";
+                    dgvFase5.Columns["UbicacionDestino"].Width = 180;
+
+                    dgvFase5.Columns["CantidadSAP"].HeaderText = "Cant. en Origen";
+                    dgvFase5.Columns["CantidadSAP"].Width = 100;
+
+                    dgvFase5.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    dgvFase5.Columns["EstadoValidacion"].Width = 250;
+
+                    lblText_Informativo.Text = $"Se importaron {dtExcelFase5.Rows.Count} artículos del Excel. Listo para pre-validar.";
+                    lblText_Informativo.BackColor = Color.LightYellow;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    btnActual.Enabled = true;
+                }
+            }
+        }
+
+        private async void Imp_Excel_F5(object sender, EventArgs e)
+        {
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el Layout de Destinos (Fase 5)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Button btnActual = (Button)sender;
+                btnActual.Enabled = false;
+
+                try
+                {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // Hilo secundario para leer el Excel rápido y sin congelar la UI
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0]; // Lee la hoja "DATAMASTER"
+
+                                // 1. CREAMOS LA TABLA EN MEMORIA (DataTable), NO EL CONTROL VISUAL
+                                dtExcelFase5 = new DataTable();
+                                dtExcelFase5.Columns.Add("Nro", typeof(int));
+                                dtExcelFase5.Columns.Add("CodigoArticulo", typeof(string));
+                                dtExcelFase5.Columns.Add("UbicacionDestino", typeof(string));
+                                dtExcelFase5.Columns.Add("CantidadSAP", typeof(decimal)); // Se llenará en la pre-validación
+                                dtExcelFase5.Columns.Add("EstadoValidacion", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    if (row.ItemArray.Length < 2) continue; // Escudo por si hay filas rotas
+
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string destino = row[1]?.ToString().Trim() ?? "";
+
+                                    // Filtramos filas vacías o si leyó el encabezado por error
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(destino) || itemCode.ToUpper() == "CODIGO")
+                                        continue;
+
+                                    // Llenamos la memoria
+                                    dtExcelFase5.Rows.Add(
+                                        contadorFila,
+                                        itemCode.ToUpper(),
+                                        destino.ToUpper(),
+                                        0, // Inicia en 0, HANA dirá la verdad en el botón preValidar
+                                        "Pendiente de Validación"
+                                    );
+
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // 2. CONECTAMOS LA MEMORIA A LA VISTA (DataGridView)
+                    dgvFase5.DataSource = null;
+                    dgvFase5.Columns.Clear();
+                    dgvFase5.DataSource = dtExcelFase5; // Aquí inyectamos la data al control visual
+
+                    // 3. Formateo estético de la grilla visual
+                    dgvFase5.Columns["Nro"].Width = 40;
+                    dgvFase5.Columns["CodigoArticulo"].HeaderText = "Código de Artículo";
+                    dgvFase5.Columns["CodigoArticulo"].Width = 150;
+
+                    dgvFase5.Columns["UbicacionDestino"].HeaderText = "Destino Solicitado";
+                    dgvFase5.Columns["UbicacionDestino"].Width = 180;
+
+                    dgvFase5.Columns["CantidadSAP"].HeaderText = "Cant. en Origen";
+                    dgvFase5.Columns["CantidadSAP"].Width = 100;
+
+                    dgvFase5.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    dgvFase5.Columns["EstadoValidacion"].Width = 250;
+
+                    lblText_Informativo.Text = $"Se importaron {dtExcelFase5.Rows.Count} artículos del Excel. Listo para pre-validar.";
+                    lblText_Informativo.BackColor = Color.LightYellow;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    btnActual.Enabled = true;
+                }
+            }
+
+        }
+
+        private async void btnImportarExcelF7_Click(object sender, EventArgs e)
+        {
+
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            openFileDialog.Title = "Seleccione el Layout de Destinos (Fase 7)";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Button btnActual = (Button)sender;
+                btnActual.Enabled = false;
+
+                try
+                {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    string filePath = openFileDialog.FileName;
+
+                    // Leemos el Excel en un hilo secundario para no congelar la pantalla
+                    await Task.Run(() =>
+                    {
+                        using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
+                        {
+                            using (var reader = ExcelReaderFactory.CreateReader(stream))
+                            {
+                                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                                {
+                                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = true }
+                                });
+
+                                DataTable rawData = result.Tables[0]; // Se lee la primera hoja
+
+                                // 1. CREAMOS LA TABLA EN MEMORIA (DataTable)
+                                dtExcelFase7 = new DataTable();
+                                dtExcelFase7.Columns.Add("Nro", typeof(int));
+                                dtExcelFase7.Columns.Add("CodigoArticulo", typeof(string));
+                                dtExcelFase7.Columns.Add("UbicacionDestino", typeof(string));
+                                dtExcelFase7.Columns.Add("CantidadSAP", typeof(decimal)); // HANA llenará esto
+                                dtExcelFase7.Columns.Add("EstadoValidacion", typeof(string));
+
+                                int contadorFila = 1;
+
+                                foreach (DataRow row in rawData.Rows)
+                                {
+                                    if (row.ItemArray.Length < 2) continue; // Ignorar filas rotas
+
+                                    string itemCode = row[0]?.ToString().Trim() ?? "";
+                                    string destino = row[1]?.ToString().Trim() ?? "";
+
+                                    // Ignorar cabeceras repetidas o celdas vacías
+                                    if (string.IsNullOrEmpty(itemCode) || string.IsNullOrEmpty(destino) || itemCode.ToUpper() == "CODIGO")
+                                        continue;
+
+                                    dtExcelFase7.Rows.Add(
+                                        contadorFila,
+                                        itemCode.ToUpper(),
+                                        destino.ToUpper(),
+                                        0, // Se inicializa en 0
+                                        "Pendiente de Validación"
+                                    );
+
+                                    contadorFila++;
+                                }
+                            }
+                        }
+                    });
+
+                    // 2. CONECTAMOS LA MEMORIA A LA GRILLA VISUAL (Ajusta 'dgvFase7' al nombre de tu DataGridView)
+                    dgvFase7.DataSource = null;
+                    dgvFase7.Columns.Clear();
+                    dgvFase7.DataSource = dtExcelFase7;
+
+                    // Formateo visual de las columnas
+                    dgvFase7.Columns["Nro"].Width = 40;
+                    dgvFase7.Columns["CodigoArticulo"].HeaderText = "Código Artículo";
+                    dgvFase7.Columns["CodigoArticulo"].Width = 150;
+
+                    dgvFase7.Columns["UbicacionDestino"].HeaderText = "Destino Solicitado";
+                    dgvFase7.Columns["UbicacionDestino"].Width = 180;
+
+                    dgvFase7.Columns["CantidadSAP"].HeaderText = "Cant. en Origen";
+                    dgvFase7.Columns["CantidadSAP"].Width = 110;
+
+                    dgvFase7.Columns["EstadoValidacion"].HeaderText = "Estado Validación";
+                    dgvFase7.Columns["EstadoValidacion"].Width = 250;
+
+                    MessageBox.Show($"Se importaron {dtExcelFase7.Rows.Count} artículos.\nIngrese la Ubicación de Inicio y presione Pre-Validar.", "Fase 7", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al leer el archivo Excel: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    btnActual.Enabled = true;
+                }
+            }
+
+
+
+
+        }
+
+        private async void btnPreValidarF7_Click(object sender, EventArgs e)
+        {
+
+
+
+
+
+        }
+
+        private async void btn2PreValidarF7_Click(object sender, EventArgs e)
+        {
+            // 1. Validaciones de negocio
+            if (dtExcelFase7 == null || dtExcelFase7.Rows.Count == 0)
+            {
+                MessageBox.Show("Primero debes importar el Excel con los destinos.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Ajusta 'txtUbicacionInicioF7' al nombre real de tu TextBox
+            if (!int.TryParse(txtUbicacionInicioF7.Text.Trim(), out int idOrigen))
+            {
+                MessageBox.Show("Ingrese un número válido (AbsEntry) en la UBICACION_INICIO.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Button btnActual = (Button)sender;
+            btnActual.Enabled = false;
+
+            // Agregamos la columna oculta que guardará el AbsEntry del destino para el traslado
+            if (!dtExcelFase7.Columns.Contains("AbsEntryDestino"))
+            {
+                dtExcelFase7.Columns.Add("AbsEntryDestino", typeof(int));
+            }
+
+            int validos = 0;
+            int errStock = 0;
+            int errDestino = 0;
+
+            try
+            {
+                var stockOrigen = new Dictionary<string, decimal>();
+                var binsDestino = new Dictionary<string, int>();
+
+                // 2. Extraer la verdad de SAP HANA en segundo plano
+                await Task.Run(() =>
+                {
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+
+                        // CONSULTA A: ¿Cuánto stock hay en el origen seleccionado?
+                        string queryStock = $@"
+                    SELECT ""ItemCode"", SUM(""OnHandQty"") 
+                    FROM OIBQ 
+                    WHERE ""BinAbs"" = {idOrigen} 
+                    GROUP BY ""ItemCode"" 
+                    HAVING SUM(""OnHandQty"") > 0";
+
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryStock, conn))
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                stockOrigen[reader.GetString(0).ToUpper()] = reader.GetDecimal(1);
+                            }
+                        }
+
+                        // CONSULTA B: Extraer los AbsEntry de los destinos para validar que existen
+                        var destinosUnicos = dtExcelFase7.AsEnumerable()
+                            .Select(r => r.Field<string>("UbicacionDestino")?.Replace("-", "").ToUpper())
+                            .Where(d => !string.IsNullOrEmpty(d))
+                            .Distinct()
+                            .ToList();
+
+                        if (destinosUnicos.Count > 0)
+                        {
+                            for (int i = 0; i < destinosUnicos.Count; i += 1000)
+                            {
+                                var chunk = destinosUnicos.Skip(i).Take(1000);
+                                string inClause = string.Join(",", chunk.Select(b => $"'{b}'"));
+
+                                string queryBins = $"SELECT \"BinCode\", \"AbsEntry\" FROM OBIN WHERE \"BinCode\" IN ({inClause})";
+
+                                using (var cmd = new System.Data.Odbc.OdbcCommand(queryBins, conn))
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    while (reader.Read())
+                                    {
+                                        binsDestino[reader.GetString(0).ToUpper()] = reader.GetInt32(1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Cruzar los datos y asignar cantidades
+                    foreach (DataRow row in dtExcelFase7.Rows)
+                    {
+                        string itemCode = row["CodigoArticulo"].ToString().ToUpper();
+                        string ubicacionDestino = row["UbicacionDestino"].ToString();
+
+                        // Limpiar guiones para cruzar con SAP
+                        string ubicacionLimpia = ubicacionDestino.Replace("-", "").ToUpper();
+
+                        bool tieneStock = stockOrigen.ContainsKey(itemCode);
+                        bool existeBin = binsDestino.ContainsKey(ubicacionLimpia);
+
+                        if (!tieneStock)
+                        {
+                            row["CantidadSAP"] = 0;
+                            row["EstadoValidacion"] = "ERROR: Sin stock en el origen";
+                            errStock++;
+                        }
+                        else if (!existeBin)
+                        {
+                            row["CantidadSAP"] = stockOrigen[itemCode];
+                            row["EstadoValidacion"] = "ERROR: Destino no existe en SAP";
+                            errDestino++;
+                        }
+                        else
+                        {
+                            row["CantidadSAP"] = stockOrigen[itemCode];
+                            row["AbsEntryDestino"] = binsDestino[ubicacionLimpia];
+                            row["EstadoValidacion"] = "OK - Listo para Traslado";
+                            validos++;
+                        }
+                    }
+                });
+
+                // 4. Pintar la grilla según resultados
+                dgvFase7.Refresh();
+
+                if (dgvFase7.Columns.Contains("AbsEntryDestino"))
+                    dgvFase7.Columns["AbsEntryDestino"].Visible = false;
+
+                foreach (DataGridViewRow row in dgvFase7.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    string estado = row.Cells["EstadoValidacion"].Value?.ToString() ?? "";
+
+                    if (estado.StartsWith("OK"))
+                        row.DefaultCellStyle.BackColor = Color.LightGreen;
+                    else if (estado.StartsWith("ERROR: Sin stock"))
+                        row.DefaultCellStyle.BackColor = Color.LightGoldenrodYellow;
+                    else if (estado.StartsWith("ERROR"))
+                        row.DefaultCellStyle.BackColor = Color.LightCoral;
+                }
+
+                // Veredicto final
+                if (errStock == 0 && errDestino == 0 && validos > 0)
+                {
+                    MessageBox.Show($"¡Validación Perfecta!\n\nSe calcularon las cantidades de {validos} artículos y los destinos están listos.\nPuede Iniciar el Traslado Masivo.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"La validación encontró errores.\n\nListos: {validos}\nSin Stock en Origen: {errStock}\nDestinos Inválidos: {errDestino}\n\nRevise las filas pintadas antes de trasladar.", "Alerta WMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error crítico en la validación: " + ex.Message, "Error ODBC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnActual.Enabled = true;
+            }
+
+
+
+        }
+
+        private async void traslado_masivo_f7_Click(object sender, EventArgs e)
+        {
+
+            // =========================================================================
+            // 1. VALIDACIONES INICIALES
+            // =========================================================================
+            if (dgvFase7.Rows.Count == 0) return;
+
+            var filasValidadas = dgvFase7.Rows.Cast<DataGridViewRow>()
+                .Where(r => !r.IsNewRow && r.Cells["EstadoValidacion"].Value?.ToString().StartsWith("OK") == true)
+                .ToList();
+
+            if (filasValidadas.Count == 0)
+            {
+                MessageBox.Show("No hay filas en estado 'OK' para trasladar. Revise la validación previa.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtUbicacionInicioF7.Text.Trim(), out int idOrigen)) return;
+
+            Button btnActual = (Button)sender;
+            btnActual.Enabled = false;
+
+            // --- PREPARACIÓN VISUAL DE LA UI ---
+            label13.Text = "Consultando configuración de Series en HANA...";
+            progressBarFase7.Style = ProgressBarStyle.Continuous; // Barra fluida, no "Marquee"
+            progressBarFase7.Value = 0;
+
+            // Reseteamos el botón de Log
+            log_f7.BackColor = Color.LightGray;
+            rutaLogFase7 = "";
+
+            int documentosExitosos = 0;
+            int documentosFallidos = 0;
+            int lineasProcesadas = 0;
+
+            System.Collections.Concurrent.ConcurrentBag<string> logErrores = new System.Collections.Concurrent.ConcurrentBag<string>();
+            logErrores.Add("--- REPORTE DE ERRORES: TRASLADO MASIVO (FASE 7) ---");
+            logErrores.Add($"Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            logErrores.Add("----------------------------------------------------");
+
+            try
+            {
+                // PASO 0: Extraer el detalle de Series para los artículos del Pulmón
+                DataTable dtStockDetalle = new DataTable();
+                string queryDetalle = $@"
+            SELECT 
+                T1.""ItemCode"", T3.""ManSerNum"", T3.""ManBtchNum"", T4.""SysNumber"", T2.""OnHandQty""
+            FROM OIBQ T1 
+            INNER JOIN OITM T3 ON T1.""ItemCode"" = T3.""ItemCode"" 
+            LEFT JOIN OSBQ T2 ON T1.""ItemCode"" = T2.""ItemCode"" AND T1.""BinAbs"" = T2.""BinAbs"" AND T2.""OnHandQty"" > 0 
+            LEFT JOIN OSRN T4 ON T2.""SnBMDAbs"" = T4.""AbsEntry"" 
+            WHERE T1.""BinAbs"" = {idOrigen} AND T1.""OnHandQty"" > 0;";
+
+                await Task.Run(() =>
+                {
+                    using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryDetalle, conn))
+                        using (var da = new System.Data.Odbc.OdbcDataAdapter(cmd))
+                        {
+                            da.Fill(dtStockDetalle);
+                        }
+                    }
+                });
+
+                // PASO 1: Armar la lista maestra
+                List<object> lineasTransferenciaMaster = new List<object>();
+
+                foreach (var row in filasValidadas)
+                {
+                    string itemCode = row.Cells["CodigoArticulo"].Value.ToString();
+                    double cantidad = Convert.ToDouble(row.Cells["CantidadSAP"].Value);
+                    int idDestino = Convert.ToInt32(row.Cells["AbsEntryDestino"].Value);
+
+                    var infoArticulo = dtStockDetalle.AsEnumerable().FirstOrDefault(r => r.Field<string>("ItemCode") == itemCode);
+                    if (infoArticulo == null) continue;
+
+                    string usaLotes = infoArticulo["ManBtchNum"].ToString();
+                    string usaSeries = infoArticulo["ManSerNum"].ToString();
+
+                    if (usaLotes == "N" && usaSeries == "N")
+                    {
+                        var allocs = new List<object>
+                {
+                    new { BinAbsEntry = idOrigen, Quantity = cantidad, AllowNegativeQuantity = "tNO", BinActionType = "batFromWarehouse" },
+                    new { BinAbsEntry = idDestino, Quantity = cantidad, AllowNegativeQuantity = "tNO", BinActionType = "batToWarehouse" }
+                };
+                        lineasTransferenciaMaster.Add(new { ItemCode = itemCode, Quantity = cantidad, WarehouseCode = "ALM01", FromWarehouseCode = "ALM01", StockTransferLinesBinAllocations = allocs });
+                    }
+                    else if (usaSeries == "Y")
+                    {
+                        var seriesDelArticulo = dtStockDetalle.AsEnumerable().Where(r => r["ItemCode"].ToString() == itemCode && r["SysNumber"] != DBNull.Value).ToList();
+                        if (seriesDelArticulo.Count == 0) continue;
+
+                        var listaSeries = new List<object>();
+                        var allocs = new List<object>();
+                        int serialIndex = 0;
+                        double cantidadTotalItem = 0;
+
+                        foreach (var sRow in seriesDelArticulo)
+                        {
+                            double qtySerie = Convert.ToDouble(sRow["OnHandQty"]);
+                            cantidadTotalItem += qtySerie;
+
+                            listaSeries.Add(new { SystemSerialNumber = Convert.ToInt32(sRow["SysNumber"]), Quantity = qtySerie });
+                            allocs.Add(new { BinAbsEntry = idOrigen, Quantity = qtySerie, AllowNegativeQuantity = "tNO", SerialAndBatchNumbersBaseLine = serialIndex, BinActionType = "batFromWarehouse" });
+                            allocs.Add(new { BinAbsEntry = idDestino, Quantity = qtySerie, AllowNegativeQuantity = "tNO", SerialAndBatchNumbersBaseLine = serialIndex, BinActionType = "batToWarehouse" });
+                            serialIndex++;
+                        }
+                        lineasTransferenciaMaster.Add(new { ItemCode = itemCode, Quantity = cantidadTotalItem, WarehouseCode = "ALM01", FromWarehouseCode = "ALM01", SerialNumbers = listaSeries, StockTransferLinesBinAllocations = allocs });
+                    }
+                    else
+                    {
+                        logErrores.Add($"[{DateTime.Now:HH:mm:ss}] EXCEPCIÓN: Artículo {itemCode} exige Lotes. Omitido.");
+                        Invoke(new Action(() => { row.Cells["EstadoValidacion"].Value = "Omitido (Usa Lote)"; row.DefaultCellStyle.BackColor = Color.LightGray; }));
+                    }
+                }
+
+                // PASO 2: Agrupar en lotes de 150 líneas
+                int tamañoLote = 150;
+                var bloquesDeTransferencia = new List<List<object>>();
+                for (int i = 0; i < lineasTransferenciaMaster.Count; i += tamañoLote)
+                {
+                    bloquesDeTransferencia.Add(lineasTransferenciaMaster.Skip(i).Take(tamañoLote).ToList());
+                }
+
+                int totalBloques = bloquesDeTransferencia.Count;
+                int bloquesCompletados = 0;
+
+                // --- CONFIGURAR MÁXIMO DE LA BARRA DE PROGRESO ---
+                Invoke(new Action(() => {
+                    progressBarFase7.Maximum = totalBloques > 0 ? totalBloques : 1;
+                    label13.Text = $"Iniciando Modo Turbo: Procesando 0 de {totalBloques} bloques...";
+                }));
+
+                if (totalBloques == 0) return;
+
+                // PASO 3: Ejecución Multihilo (10 Hilos)
+                using (SemaphoreSlim semaphore = new SemaphoreSlim(10))
+                {
+                    var tareas = new List<Task>();
+
+                    foreach (var bloque in bloquesDeTransferencia)
+                    {
+                        await semaphore.WaitAsync();
+
+                        tareas.Add(Task.Run(async () =>
+                        {
+                            try
+                            {
+                                bool exito = await EnviarTransferencia(bloque, $"Traslado Fase 7 Origen {idOrigen}", logErrores);
+
+                                if (exito)
+                                {
+                                    System.Threading.Interlocked.Increment(ref documentosExitosos);
+                                    System.Threading.Interlocked.Add(ref lineasProcesadas, bloque.Count);
+                                }
+                                else
+                                {
+                                    System.Threading.Interlocked.Increment(ref documentosFallidos);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Threading.Interlocked.Increment(ref documentosFallidos);
+                                logErrores.Add($"[{DateTime.Now:HH:mm:ss}] Error en red: {ex.Message}");
+                            }
+                            finally
+                            {
+                                int procesadosLocal = System.Threading.Interlocked.Increment(ref bloquesCompletados);
+
+                                // --- ACTUALIZAR UI EN TIEMPO REAL ---
+                                Invoke(new Action(() => {
+                                    label13.Text = $"Trasladando inventario... {procesadosLocal} de {totalBloques} completados.";
+                                    progressBarFase7.Value = procesadosLocal;
+                                }));
+
+                                semaphore.Release();
+                            }
+                        }));
+                    }
+                    await Task.WhenAll(tareas);
+                }
+
+                // PASO 4: Feedback Final
+                if (documentosFallidos > 0 || logErrores.Count > 3) // > 3 por las cabeceras del log
+                {
+                    // Guardamos el Log en el escritorio
+                    rutaLogFase7 = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"Log_Fase7_Errores_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    System.IO.File.WriteAllLines(rutaLogFase7, logErrores);
+
+                    // Encendemos el botón Log en Naranja
+                    log_f7.BackColor = Color.Orange;
+                    label13.Text = "Migración finalizada con errores. Revise el Log.";
+
+                    MessageBox.Show($"Migración finalizada con observaciones.\n\nDoc. Exitosos: {documentosExitosos}\nDoc. Fallidos: {documentosFallidos}\nArtículos Movidos: {lineasProcesadas}\n\nPresione el botón 'Log' para ver el detalle de los errores de SAP.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    log_f7.BackColor = Color.LightGray;
+                    label13.Text = "¡Traslado masivo completado al 100% sin errores!";
+
+                    MessageBox.Show($"¡TRASLADO MASIVO EXITOSO!\n\nSe movieron los {lineasProcesadas} artículos desde el origen a sus ubicaciones finales.\nDocumentos en SAP: {documentosExitosos}", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    foreach (var row in filasValidadas)
+                    {
+                        row.Cells["EstadoValidacion"].Value = "TRASLADADO";
+                        row.DefaultCellStyle.BackColor = Color.LightBlue;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                label13.Text = "Error crítico detenido.";
+                MessageBox.Show($"Error crítico en el orquestador: {ex.Message}", "Fallo Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnActual.Enabled = true;
+            }
+
+
+
+        }
+
+        private void log_f7_Click(object sender, EventArgs e)
+        {
+            // Verificamos si la ruta está guardada en la variable global y el archivo existe
+            if (!string.IsNullOrEmpty(rutaLogFase7) && System.IO.File.Exists(rutaLogFase7))
+            {
+                try
+                {
+                    // Abre el bloc de notas exactamente con el archivo de los errores
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
+                    {
+                        FileName = rutaLogFase7,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo abrir el archivo de log: " + ex.Message, "Error de Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                // Si la migración fue 100% exitosa, no hay log de errores que mostrar
+                MessageBox.Show("No hay ningún log de errores reciente para mostrar o la última migración fue 100% perfecta.", "WMS Makita - Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+        }
     }
 }

@@ -78,6 +78,8 @@
             f4_importarExcel = new Button();
             f4_dgv = new DataGridView();
             tabPage5 = new TabPage();
+            btnImportarSoloLotes = new Button();
+            f0_SoloActivarLotes = new Button();
             f0_logexportar = new Button();
             f0_progressBar4 = new ProgressBar();
             f0_entradamasiva = new Button();
@@ -86,6 +88,36 @@
             f0_prevalidar = new Button();
             f0_btnImportaexceldata = new Button();
             f0_dgv1 = new DataGridView();
+            btnPreValidarFase5 = new TabPage();
+            button15 = new Button();
+            btnImportarExcelFase5_Click = new Button();
+            button16 = new Button();
+            btnIniciarTraslado = new Button();
+            lblText_Informativo = new Label();
+            progressBar4 = new ProgressBar();
+            button14 = new Button();
+            label10 = new Label();
+            txtUbicacion_Final = new TextBox();
+            label9 = new Label();
+            txtUbicacionInicio = new TextBox();
+            dgvFase5 = new DataGridView();
+            tabPage6 = new TabPage();
+            f6_progressBar = new ProgressBar();
+            f6_btnCrearSubni = new Button();
+            f6_btnPreValidar = new Button();
+            f6_btnCrear = new Button();
+            dgvFase6 = new DataGridView();
+            label11 = new Label();
+            tabPage7 = new TabPage();
+            label13 = new Label();
+            progressBarFase7 = new ProgressBar();
+            btn2PreValidarF7 = new Button();
+            traslado_masivo_f7 = new Button();
+            log_f7 = new Button();
+            button17 = new Button();
+            label12 = new Label();
+            txtUbicacionInicioF7 = new TextBox();
+            dgvFase7 = new DataGridView();
             textBox1 = new TextBox();
             button1 = new Button();
             label6 = new Label();
@@ -105,6 +137,12 @@
             ((System.ComponentModel.ISupportInitialize)f4_dgv).BeginInit();
             tabPage5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)f0_dgv1).BeginInit();
+            btnPreValidarFase5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase5).BeginInit();
+            tabPage6.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase6).BeginInit();
+            tabPage7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase7).BeginInit();
             SuspendLayout();
             // 
             // lblbdcon
@@ -132,7 +170,10 @@
             tabControl1.Controls.Add(tabPage3);
             tabControl1.Controls.Add(tabPage4);
             tabControl1.Controls.Add(tabPage5);
-            tabControl1.Location = new Point(12, 83);
+            tabControl1.Controls.Add(btnPreValidarFase5);
+            tabControl1.Controls.Add(tabPage6);
+            tabControl1.Controls.Add(tabPage7);
+            tabControl1.Location = new Point(16, 85);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
             tabControl1.Size = new Size(1059, 674);
@@ -603,6 +644,8 @@
             // 
             // tabPage5
             // 
+            tabPage5.Controls.Add(btnImportarSoloLotes);
+            tabPage5.Controls.Add(f0_SoloActivarLotes);
             tabPage5.Controls.Add(f0_logexportar);
             tabPage5.Controls.Add(f0_progressBar4);
             tabPage5.Controls.Add(f0_entradamasiva);
@@ -618,9 +661,29 @@
             tabPage5.Text = "Fase0";
             tabPage5.UseVisualStyleBackColor = true;
             // 
+            // btnImportarSoloLotes
+            // 
+            btnImportarSoloLotes.Location = new Point(267, 37);
+            btnImportarSoloLotes.Name = "btnImportarSoloLotes";
+            btnImportarSoloLotes.Size = new Size(231, 23);
+            btnImportarSoloLotes.TabIndex = 9;
+            btnImportarSoloLotes.Text = "ImportarCodigoSoloLote";
+            btnImportarSoloLotes.UseVisualStyleBackColor = true;
+            btnImportarSoloLotes.Click += btnImportarSoloLotes_Click;
+            // 
+            // f0_SoloActivarLotes
+            // 
+            f0_SoloActivarLotes.Location = new Point(199, 234);
+            f0_SoloActivarLotes.Name = "f0_SoloActivarLotes";
+            f0_SoloActivarLotes.Size = new Size(75, 23);
+            f0_SoloActivarLotes.TabIndex = 8;
+            f0_SoloActivarLotes.Text = "SoloActivarLote";
+            f0_SoloActivarLotes.UseVisualStyleBackColor = true;
+            f0_SoloActivarLotes.Click += f0_SoloActivarLotes_Click;
+            // 
             // f0_logexportar
             // 
-            f0_logexportar.Location = new Point(417, 234);
+            f0_logexportar.Location = new Point(563, 234);
             f0_logexportar.Name = "f0_logexportar";
             f0_logexportar.Size = new Size(93, 23);
             f0_logexportar.TabIndex = 7;
@@ -630,14 +693,14 @@
             // 
             // f0_progressBar4
             // 
-            f0_progressBar4.Location = new Point(118, 272);
+            f0_progressBar4.Location = new Point(114, 300);
             f0_progressBar4.Name = "f0_progressBar4";
             f0_progressBar4.Size = new Size(602, 23);
             f0_progressBar4.TabIndex = 6;
             // 
             // f0_entradamasiva
             // 
-            f0_entradamasiva.Location = new Point(619, 234);
+            f0_entradamasiva.Location = new Point(765, 234);
             f0_entradamasiva.Name = "f0_entradamasiva";
             f0_entradamasiva.Size = new Size(101, 23);
             f0_entradamasiva.TabIndex = 5;
@@ -647,7 +710,7 @@
             // 
             // f0_salidamasiva
             // 
-            f0_salidamasiva.Location = new Point(209, 234);
+            f0_salidamasiva.Location = new Point(383, 234);
             f0_salidamasiva.Name = "f0_salidamasiva";
             f0_salidamasiva.Size = new Size(99, 23);
             f0_salidamasiva.TabIndex = 4;
@@ -691,6 +754,295 @@
             f0_dgv1.Name = "f0_dgv1";
             f0_dgv1.Size = new Size(1007, 162);
             f0_dgv1.TabIndex = 0;
+            // 
+            // btnPreValidarFase5
+            // 
+            btnPreValidarFase5.Controls.Add(button15);
+            btnPreValidarFase5.Controls.Add(btnImportarExcelFase5_Click);
+            btnPreValidarFase5.Controls.Add(button16);
+            btnPreValidarFase5.Controls.Add(btnIniciarTraslado);
+            btnPreValidarFase5.Controls.Add(lblText_Informativo);
+            btnPreValidarFase5.Controls.Add(progressBar4);
+            btnPreValidarFase5.Controls.Add(button14);
+            btnPreValidarFase5.Controls.Add(label10);
+            btnPreValidarFase5.Controls.Add(txtUbicacion_Final);
+            btnPreValidarFase5.Controls.Add(label9);
+            btnPreValidarFase5.Controls.Add(txtUbicacionInicio);
+            btnPreValidarFase5.Controls.Add(dgvFase5);
+            btnPreValidarFase5.Location = new Point(4, 24);
+            btnPreValidarFase5.Name = "btnPreValidarFase5";
+            btnPreValidarFase5.Size = new Size(1051, 646);
+            btnPreValidarFase5.TabIndex = 5;
+            btnPreValidarFase5.Text = "Fase5";
+            btnPreValidarFase5.UseVisualStyleBackColor = true;
+            btnPreValidarFase5.Click += btnPreValidarFase5_Click;
+            // 
+            // button15
+            // 
+            button15.Location = new Point(23, 38);
+            button15.Name = "button15";
+            button15.Size = new Size(75, 23);
+            button15.TabIndex = 9;
+            button15.Text = "button15";
+            button15.UseVisualStyleBackColor = true;
+            // 
+            // btnImportarExcelFase5_Click
+            // 
+            btnImportarExcelFase5_Click.Location = new Point(783, 3);
+            btnImportarExcelFase5_Click.Name = "btnImportarExcelFase5_Click";
+            btnImportarExcelFase5_Click.Size = new Size(75, 23);
+            btnImportarExcelFase5_Click.TabIndex = 0;
+            // 
+            // button16
+            // 
+            button16.Location = new Point(783, 43);
+            button16.Name = "button16";
+            button16.Size = new Size(75, 23);
+            button16.TabIndex = 0;
+            // 
+            // btnIniciarTraslado
+            // 
+            btnIniciarTraslado.Location = new Point(237, 311);
+            btnIniciarTraslado.Name = "btnIniciarTraslado";
+            btnIniciarTraslado.Size = new Size(145, 23);
+            btnIniciarTraslado.TabIndex = 8;
+            btnIniciarTraslado.Text = "Iniciar_traslado";
+            btnIniciarTraslado.UseVisualStyleBackColor = true;
+            btnIniciarTraslado.Click += btnIniciarTraslado_Click;
+            // 
+            // lblText_Informativo
+            // 
+            lblText_Informativo.AutoSize = true;
+            lblText_Informativo.Location = new Point(174, 361);
+            lblText_Informativo.Name = "lblText_Informativo";
+            lblText_Informativo.Size = new Size(95, 15);
+            lblText_Informativo.TabIndex = 7;
+            lblText_Informativo.Text = "Text_Informativo";
+            // 
+            // progressBar4
+            // 
+            progressBar4.Location = new Point(174, 379);
+            progressBar4.Name = "progressBar4";
+            progressBar4.Size = new Size(508, 23);
+            progressBar4.TabIndex = 6;
+            // 
+            // button14
+            // 
+            button14.Location = new Point(23, 311);
+            button14.Name = "button14";
+            button14.Size = new Size(127, 23);
+            button14.TabIndex = 5;
+            button14.Text = "preValidar";
+            button14.UseVisualStyleBackColor = true;
+            button14.Click += button14_Click_1;
+            // 
+            // label10
+            // 
+            label10.AutoSize = true;
+            label10.Location = new Point(555, 47);
+            label10.Name = "label10";
+            label10.Size = new Size(90, 15);
+            label10.TabIndex = 4;
+            label10.Text = "Ubicacion_Final";
+            // 
+            // txtUbicacion_Final
+            // 
+            txtUbicacion_Final.Location = new Point(662, 43);
+            txtUbicacion_Final.Name = "txtUbicacion_Final";
+            txtUbicacion_Final.Size = new Size(100, 23);
+            txtUbicacion_Final.TabIndex = 3;
+            // 
+            // label9
+            // 
+            label9.AutoSize = true;
+            label9.Location = new Point(350, 46);
+            label9.Name = "label9";
+            label9.Size = new Size(89, 15);
+            label9.TabIndex = 2;
+            label9.Text = "UbicacionInicio";
+            // 
+            // txtUbicacionInicio
+            // 
+            txtUbicacionInicio.Location = new Point(445, 42);
+            txtUbicacionInicio.Name = "txtUbicacionInicio";
+            txtUbicacionInicio.Size = new Size(100, 23);
+            txtUbicacionInicio.TabIndex = 1;
+            // 
+            // dgvFase5
+            // 
+            dgvFase5.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvFase5.Location = new Point(23, 78);
+            dgvFase5.Name = "dgvFase5";
+            dgvFase5.Size = new Size(780, 212);
+            dgvFase5.TabIndex = 0;
+            // 
+            // tabPage6
+            // 
+            tabPage6.Controls.Add(f6_progressBar);
+            tabPage6.Controls.Add(f6_btnCrearSubni);
+            tabPage6.Controls.Add(f6_btnPreValidar);
+            tabPage6.Controls.Add(f6_btnCrear);
+            tabPage6.Controls.Add(dgvFase6);
+            tabPage6.Controls.Add(label11);
+            tabPage6.Location = new Point(4, 24);
+            tabPage6.Name = "tabPage6";
+            tabPage6.Size = new Size(1051, 646);
+            tabPage6.TabIndex = 6;
+            tabPage6.Text = "Fase_6";
+            tabPage6.UseVisualStyleBackColor = true;
+            tabPage6.Click += tabPage6_Click;
+            // 
+            // f6_progressBar
+            // 
+            f6_progressBar.Location = new Point(65, 348);
+            f6_progressBar.Name = "f6_progressBar";
+            f6_progressBar.Size = new Size(355, 23);
+            f6_progressBar.TabIndex = 5;
+            // 
+            // f6_btnCrearSubni
+            // 
+            f6_btnCrearSubni.Location = new Point(345, 307);
+            f6_btnCrearSubni.Name = "f6_btnCrearSubni";
+            f6_btnCrearSubni.Size = new Size(150, 23);
+            f6_btnCrearSubni.TabIndex = 4;
+            f6_btnCrearSubni.Text = "crear_subniveles";
+            f6_btnCrearSubni.UseVisualStyleBackColor = true;
+            f6_btnCrearSubni.Click += f6_btnCrearSubni_Click;
+            // 
+            // f6_btnPreValidar
+            // 
+            f6_btnPreValidar.Location = new Point(65, 307);
+            f6_btnPreValidar.Name = "f6_btnPreValidar";
+            f6_btnPreValidar.Size = new Size(75, 23);
+            f6_btnPreValidar.TabIndex = 3;
+            f6_btnPreValidar.Text = "pre-validar";
+            f6_btnPreValidar.UseVisualStyleBackColor = true;
+            f6_btnPreValidar.Click += f6_btnPreValidar_Click;
+            // 
+            // f6_btnCrear
+            // 
+            f6_btnCrear.Location = new Point(803, 307);
+            f6_btnCrear.Name = "f6_btnCrear";
+            f6_btnCrear.Size = new Size(75, 23);
+            f6_btnCrear.TabIndex = 2;
+            f6_btnCrear.Text = "crear Niveles";
+            f6_btnCrear.UseVisualStyleBackColor = true;
+            f6_btnCrear.Click += f6_btnCrear_Click;
+            // 
+            // dgvFase6
+            // 
+            dgvFase6.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvFase6.Location = new Point(65, 52);
+            dgvFase6.Name = "dgvFase6";
+            dgvFase6.Size = new Size(813, 237);
+            dgvFase6.TabIndex = 1;
+            // 
+            // label11
+            // 
+            label11.AutoSize = true;
+            label11.Location = new Point(65, 26);
+            label11.Name = "label11";
+            label11.Size = new Size(249, 15);
+            label11.TabIndex = 0;
+            label11.Text = "Crear ubicaciones y subnivel  de tipo RESERVA";
+            // 
+            // tabPage7
+            // 
+            tabPage7.Controls.Add(label13);
+            tabPage7.Controls.Add(progressBarFase7);
+            tabPage7.Controls.Add(btn2PreValidarF7);
+            tabPage7.Controls.Add(traslado_masivo_f7);
+            tabPage7.Controls.Add(log_f7);
+            tabPage7.Controls.Add(button17);
+            tabPage7.Controls.Add(label12);
+            tabPage7.Controls.Add(txtUbicacionInicioF7);
+            tabPage7.Controls.Add(dgvFase7);
+            tabPage7.Location = new Point(4, 24);
+            tabPage7.Name = "tabPage7";
+            tabPage7.Size = new Size(1051, 646);
+            tabPage7.TabIndex = 7;
+            tabPage7.Text = "Fase_7";
+            tabPage7.UseVisualStyleBackColor = true;
+            // 
+            // label13
+            // 
+            label13.AutoSize = true;
+            label13.Location = new Point(31, 350);
+            label13.Name = "label13";
+            label13.Size = new Size(44, 15);
+            label13.TabIndex = 9;
+            label13.Text = "label13";
+            // 
+            // progressBarFase7
+            // 
+            progressBarFase7.Location = new Point(29, 388);
+            progressBarFase7.Name = "progressBarFase7";
+            progressBarFase7.Size = new Size(532, 23);
+            progressBarFase7.TabIndex = 8;
+            // 
+            // btn2PreValidarF7
+            // 
+            btn2PreValidarF7.Location = new Point(29, 310);
+            btn2PreValidarF7.Name = "btn2PreValidarF7";
+            btn2PreValidarF7.Size = new Size(166, 23);
+            btn2PreValidarF7.TabIndex = 7;
+            btn2PreValidarF7.Text = "Validar_pre";
+            btn2PreValidarF7.UseVisualStyleBackColor = true;
+            btn2PreValidarF7.Click += btn2PreValidarF7_Click;
+            // 
+            // traslado_masivo_f7
+            // 
+            traslado_masivo_f7.Location = new Point(631, 310);
+            traslado_masivo_f7.Name = "traslado_masivo_f7";
+            traslado_masivo_f7.Size = new Size(149, 23);
+            traslado_masivo_f7.TabIndex = 6;
+            traslado_masivo_f7.Text = "Traslado_Masivo";
+            traslado_masivo_f7.UseVisualStyleBackColor = true;
+            traslado_masivo_f7.Click += traslado_masivo_f7_Click;
+            // 
+            // log_f7
+            // 
+            log_f7.Location = new Point(323, 310);
+            log_f7.Name = "log_f7";
+            log_f7.Size = new Size(170, 23);
+            log_f7.TabIndex = 5;
+            log_f7.Text = "Log";
+            log_f7.UseVisualStyleBackColor = true;
+            log_f7.Click += log_f7_Click;
+            // 
+            // button17
+            // 
+            button17.Location = new Point(29, 42);
+            button17.Name = "button17";
+            button17.Size = new Size(209, 23);
+            button17.TabIndex = 3;
+            button17.Text = "Importar_excel_F7";
+            button17.UseVisualStyleBackColor = true;
+            button17.Click += btnImportarExcelF7_Click;
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.Location = new Point(511, 46);
+            label12.Name = "label12";
+            label12.Size = new Size(110, 15);
+            label12.TabIndex = 2;
+            label12.Text = "UBICACION_INICIO";
+            // 
+            // txtUbicacionInicioF7
+            // 
+            txtUbicacionInicioF7.Location = new Point(642, 42);
+            txtUbicacionInicioF7.Name = "txtUbicacionInicioF7";
+            txtUbicacionInicioF7.Size = new Size(138, 23);
+            txtUbicacionInicioF7.TabIndex = 1;
+            // 
+            // dgvFase7
+            // 
+            dgvFase7.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvFase7.Location = new Point(29, 76);
+            dgvFase7.Name = "dgvFase7";
+            dgvFase7.Size = new Size(752, 215);
+            dgvFase7.TabIndex = 0;
             // 
             // textBox1
             // 
@@ -773,6 +1125,15 @@
             tabPage5.ResumeLayout(false);
             tabPage5.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)f0_dgv1).EndInit();
+            btnPreValidarFase5.ResumeLayout(false);
+            btnPreValidarFase5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase5).EndInit();
+            tabPage6.ResumeLayout(false);
+            tabPage6.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase6).EndInit();
+            tabPage7.ResumeLayout(false);
+            tabPage7.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvFase7).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -841,5 +1202,40 @@
         private Button f0_prevalidar;
         private Button f0_logexportar;
         private Label descripcionOperacion;
+        private TabPage btnPreValidarFase5;
+        private Button button14;
+        private Label label10;
+        private TextBox txtUbicacion_Final;
+        private Label label9;
+        private TextBox txtUbicacionInicio;
+        private DataGridView dgvFase5;
+        private Button btnIniciarTraslado;
+        private Label lblText_Informativo;
+        private ProgressBar progressBar4;
+        private Button button16;
+        private Button f0_SoloActivarLotes;
+        private Button btnImportarSoloLotes;
+        private TabPage tabPage6;
+        private Label label11;
+        private Button f6_btnCrearSubni;
+        private Button f6_btnCrear;
+        private DataGridView dgvFase6;
+        private Button f6_btnPreValidar;
+        private ProgressBar f6_progressBar;
+        //private Button btnImportarExcelFas5_Click;
+        private Button btnImportarExcelFase5_Click;
+        private Button button15;
+        private TabPage tabPage7;
+        private Button traslado_masivo_f7;
+        private Button log_f7;
+        //private Button btnPreValidarF7_Click;
+        private Button button17;
+        private Label label12;
+        private TextBox txtUbicacionInicioF7;
+        private DataGridView dgvFase7;
+        private Button btn2PreValidarF7;
+        private Label label13;
+        private ProgressBar progressBarFase7;
+        //private Button btnImportarExcelFase5_Click;
     }
 }
