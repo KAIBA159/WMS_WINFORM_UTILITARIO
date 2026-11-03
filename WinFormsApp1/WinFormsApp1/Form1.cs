@@ -6623,26 +6623,25 @@ namespace WinFormsApp1
 
         }
 
-        private async void btn2PreValidarF7_Click(object sender, EventArgs e)
+        private async void btn2PreValidarF7_Click(object sender, EventArgs e) 
         {
-            // 1. Validaciones de negocio
+            // 1. Validaciones iniciales
             if (dtExcelFase7 == null || dtExcelFase7.Rows.Count == 0)
             {
                 MessageBox.Show("Primero debes importar el Excel con los destinos.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // Ajusta 'txtUbicacionInicioF7' al nombre real de tu TextBox
-            if (!int.TryParse(txtUbicacionInicioF7.Text.Trim(), out int idOrigen))
+            string txtOrigen = txtUbicacionInicioF7.Text.Trim();
+            if (string.IsNullOrEmpty(txtOrigen))
             {
-                MessageBox.Show("Ingrese un número válido (AbsEntry) en la UBICACION_INICIO.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Debe ingresar el Código de Ubicación de Inicio.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             Button btnActual = (Button)sender;
             btnActual.Enabled = false;
 
-            // Agregamos la columna oculta que guardará el AbsEntry del destino para el traslado
             if (!dtExcelFase7.Columns.Contains("AbsEntryDestino"))
             {
                 dtExcelFase7.Columns.Add("AbsEntryDestino", typeof(int));
@@ -6657,14 +6656,34 @@ namespace WinFormsApp1
                 var stockOrigen = new Dictionary<string, decimal>();
                 var binsDestino = new Dictionary<string, int>();
 
-                // 2. Extraer la verdad de SAP HANA en segundo plano
+                // 2. Consultas a HANA en segundo plano
                 await Task.Run(() =>
                 {
                     using (var conn = new System.Data.Odbc.OdbcConnection(GetHanaConnectionString()))
                     {
                         conn.Open();
 
-                        // CONSULTA A: ¿Cuánto stock hay en el origen seleccionado?
+                        // CONSULTA 0: TRADUCIR EL TEXTO DE ORIGEN A SU ABSENTRY
+                        int idOrigen = 0;
+                        string queryAbsEntry = $"SELECT \"AbsEntry\" FROM OBIN WHERE \"BinCode\" = '{txtOrigen}'";
+                        using (var cmd = new System.Data.Odbc.OdbcCommand(queryAbsEntry, conn))
+                        {
+                            var result = cmd.ExecuteScalar();
+                            if (result == null || result == DBNull.Value)
+                            {
+                                // Si no lo encuentra por texto, intentamos ver si el usuario ya ingresó el número directamente (Ej. 35265)
+                                if (!int.TryParse(txtOrigen, out idOrigen))
+                                {
+                                    throw new Exception($"La ubicación de inicio '{txtOrigen}' no existe en SAP.");
+                                }
+                            }
+                            else
+                            {
+                                idOrigen = Convert.ToInt32(result);
+                            }
+                        }
+
+                        // CONSULTA A: OBTENER STOCK 
                         string queryStock = $@"
                     SELECT ""ItemCode"", SUM(""OnHandQty"") 
                     FROM OIBQ 
@@ -6681,9 +6700,9 @@ namespace WinFormsApp1
                             }
                         }
 
-                        // CONSULTA B: Extraer los AbsEntry de los destinos para validar que existen
+                        // CONSULTA B: VALIDAR DESTINOS (AHORA SIN QUITAR GUIONES)
                         var destinosUnicos = dtExcelFase7.AsEnumerable()
-                            .Select(r => r.Field<string>("UbicacionDestino")?.Replace("-", "").ToUpper())
+                            .Select(r => r.Field<string>("UbicacionDestino")?.ToUpper()) // <-- CORRECCIÓN AQUÍ
                             .Where(d => !string.IsNullOrEmpty(d))
                             .Distinct()
                             .ToList();
@@ -6709,17 +6728,14 @@ namespace WinFormsApp1
                         }
                     }
 
-                    // 3. Cruzar los datos y asignar cantidades
+                    // 3. MOTOR DE CRUZAMIENTO
                     foreach (DataRow row in dtExcelFase7.Rows)
                     {
                         string itemCode = row["CodigoArticulo"].ToString().ToUpper();
-                        string ubicacionDestino = row["UbicacionDestino"].ToString();
-
-                        // Limpiar guiones para cruzar con SAP
-                        string ubicacionLimpia = ubicacionDestino.Replace("-", "").ToUpper();
+                        string ubicacionDestino = row["UbicacionDestino"].ToString().ToUpper(); // <-- CORRECCIÓN AQUÍ
 
                         bool tieneStock = stockOrigen.ContainsKey(itemCode);
-                        bool existeBin = binsDestino.ContainsKey(ubicacionLimpia);
+                        bool existeBin = binsDestino.ContainsKey(ubicacionDestino);
 
                         if (!tieneStock)
                         {
@@ -6736,14 +6752,14 @@ namespace WinFormsApp1
                         else
                         {
                             row["CantidadSAP"] = stockOrigen[itemCode];
-                            row["AbsEntryDestino"] = binsDestino[ubicacionLimpia];
+                            row["AbsEntryDestino"] = binsDestino[ubicacionDestino];
                             row["EstadoValidacion"] = "OK - Listo para Traslado";
                             validos++;
                         }
                     }
                 });
 
-                // 4. Pintar la grilla según resultados
+                // 4. Feedback Visual
                 dgvFase7.Refresh();
 
                 if (dgvFase7.Columns.Contains("AbsEntryDestino"))
@@ -6762,19 +6778,18 @@ namespace WinFormsApp1
                         row.DefaultCellStyle.BackColor = Color.LightCoral;
                 }
 
-                // Veredicto final
                 if (errStock == 0 && errDestino == 0 && validos > 0)
                 {
-                    MessageBox.Show($"¡Validación Perfecta!\n\nSe calcularon las cantidades de {validos} artículos y los destinos están listos.\nPuede Iniciar el Traslado Masivo.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"¡Validación Perfecta!\n\nSe calcularon las cantidades de {validos} artículos.\nPuede Iniciar el Traslado Masivo.", "WMS Makita", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
-                    MessageBox.Show($"La validación encontró errores.\n\nListos: {validos}\nSin Stock en Origen: {errStock}\nDestinos Inválidos: {errDestino}\n\nRevise las filas pintadas antes de trasladar.", "Alerta WMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show($"La validación encontró errores.\n\nListos: {validos}\nSin Stock en Origen: {errStock}\nDestinos Inválidos: {errDestino}\n\nRevise las filas pintadas.", "Alerta WMS", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error crítico en la validación: " + ex.Message, "Error ODBC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(ex.Message, "Error de Validación", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -6784,6 +6799,7 @@ namespace WinFormsApp1
 
 
         }
+        
 
         private async void traslado_masivo_f7_Click(object sender, EventArgs e)
         {
