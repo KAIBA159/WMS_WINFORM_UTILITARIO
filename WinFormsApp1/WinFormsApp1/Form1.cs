@@ -79,8 +79,8 @@ namespace WinFormsApp1
         // ==========================================
         // VARIABLES GLOBALES DE CONEXIÓN SERVICE LAYER (SAP B1)
         // ==========================================
-        private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
-        //private readonly string slBaseDatosGlobal = "SBO_MAKITA_WMS_080926_1";
+        //private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
+        private readonly string slBaseDatosGlobal = "TEST_SBO_MAKITA_PE_04112026";
         private readonly string slUsuarioGlobal = "manager";
         private readonly string slClaveGlobal = "m1r1";
         private readonly string slUrlBaseGlobal = "https://192.168.1.17:50000/b1s/v1/";
