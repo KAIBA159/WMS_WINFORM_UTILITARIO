@@ -118,11 +118,21 @@
             label12 = new Label();
             txtUbicacionInicioF7 = new TextBox();
             dgvFase7 = new DataGridView();
+            tabPage8 = new TabPage();
+            textocarga_F8 = new Label();
+            progressBar5 = new ProgressBar();
+            label14 = new Label();
+            Actualizar_Masivo_Serie = new Button();
+            Log_F8 = new Button();
+            Pre_Validacion = new Button();
+            dgv_F8 = new DataGridView();
+            button18 = new Button();
             textBox1 = new TextBox();
             button1 = new Button();
             label6 = new Label();
             label7 = new Label();
             descripcionOperacion = new Label();
+            colorDialog1 = new ColorDialog();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -143,6 +153,8 @@
             ((System.ComponentModel.ISupportInitialize)dgvFase6).BeginInit();
             tabPage7.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvFase7).BeginInit();
+            tabPage8.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgv_F8).BeginInit();
             SuspendLayout();
             // 
             // lblbdcon
@@ -173,6 +185,7 @@
             tabControl1.Controls.Add(btnPreValidarFase5);
             tabControl1.Controls.Add(tabPage6);
             tabControl1.Controls.Add(tabPage7);
+            tabControl1.Controls.Add(tabPage8);
             tabControl1.Location = new Point(16, 85);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -1044,6 +1057,96 @@
             dgvFase7.Size = new Size(752, 215);
             dgvFase7.TabIndex = 0;
             // 
+            // tabPage8
+            // 
+            tabPage8.Controls.Add(textocarga_F8);
+            tabPage8.Controls.Add(progressBar5);
+            tabPage8.Controls.Add(label14);
+            tabPage8.Controls.Add(Actualizar_Masivo_Serie);
+            tabPage8.Controls.Add(Log_F8);
+            tabPage8.Controls.Add(Pre_Validacion);
+            tabPage8.Controls.Add(dgv_F8);
+            tabPage8.Controls.Add(button18);
+            tabPage8.Location = new Point(4, 24);
+            tabPage8.Name = "tabPage8";
+            tabPage8.Size = new Size(1051, 646);
+            tabPage8.TabIndex = 8;
+            tabPage8.Text = "Fase_8";
+            tabPage8.UseVisualStyleBackColor = true;
+            // 
+            // textocarga_F8
+            // 
+            textocarga_F8.AutoSize = true;
+            textocarga_F8.Location = new Point(15, 426);
+            textocarga_F8.Name = "textocarga_F8";
+            textocarga_F8.Size = new Size(130, 15);
+            textocarga_F8.TabIndex = 7;
+            textocarga_F8.Text = "Texto_carga_porcentaje";
+            // 
+            // progressBar5
+            // 
+            progressBar5.Location = new Point(15, 453);
+            progressBar5.Name = "progressBar5";
+            progressBar5.Size = new Size(467, 23);
+            progressBar5.TabIndex = 6;
+            // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new Point(15, 12);
+            label14.Name = "label14";
+            label14.Size = new Size(310, 15);
+            label14.TabIndex = 5;
+            label14.Text = "Actualizacion masiva de series, al formate de  7 caracteres";
+            // 
+            // Actualizar_Masivo_Serie
+            // 
+            Actualizar_Masivo_Serie.Location = new Point(565, 384);
+            Actualizar_Masivo_Serie.Name = "Actualizar_Masivo_Serie";
+            Actualizar_Masivo_Serie.Size = new Size(180, 23);
+            Actualizar_Masivo_Serie.TabIndex = 4;
+            Actualizar_Masivo_Serie.Text = "Actualizar_Masivo_Serie";
+            Actualizar_Masivo_Serie.UseVisualStyleBackColor = true;
+            Actualizar_Masivo_Serie.Click += Actualizar_Masivo_Serie_Click;
+            // 
+            // Log_F8
+            // 
+            Log_F8.Location = new Point(281, 384);
+            Log_F8.Name = "Log_F8";
+            Log_F8.Size = new Size(201, 23);
+            Log_F8.TabIndex = 3;
+            Log_F8.Text = "Log";
+            Log_F8.UseVisualStyleBackColor = true;
+            Log_F8.Click += Log_F8_Click;
+            // 
+            // Pre_Validacion
+            // 
+            Pre_Validacion.Location = new Point(13, 384);
+            Pre_Validacion.Name = "Pre_Validacion";
+            Pre_Validacion.Size = new Size(201, 23);
+            Pre_Validacion.TabIndex = 2;
+            Pre_Validacion.Text = "Pre_Validación";
+            Pre_Validacion.UseVisualStyleBackColor = true;
+            Pre_Validacion.Click += Pre_Validacion_Click;
+            // 
+            // dgv_F8
+            // 
+            dgv_F8.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgv_F8.Location = new Point(13, 65);
+            dgv_F8.Name = "dgv_F8";
+            dgv_F8.Size = new Size(995, 303);
+            dgv_F8.TabIndex = 1;
+            // 
+            // button18
+            // 
+            button18.Location = new Point(13, 36);
+            button18.Name = "button18";
+            button18.Size = new Size(201, 23);
+            button18.TabIndex = 0;
+            button18.Text = "Importar_datos__BD";
+            button18.UseVisualStyleBackColor = true;
+            button18.Click += Importar_datos__BD_F8;
+            // 
             // textBox1
             // 
             textBox1.Location = new Point(16, 6);
@@ -1134,6 +1237,9 @@
             tabPage7.ResumeLayout(false);
             tabPage7.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgvFase7).EndInit();
+            tabPage8.ResumeLayout(false);
+            tabPage8.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgv_F8).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -1236,6 +1342,16 @@
         private Button btn2PreValidarF7;
         private Label label13;
         private ProgressBar progressBarFase7;
+        private TabPage tabPage8;
+        private Button Actualizar_Masivo_Serie;
+        private Button Log_F8;
+        private Button Pre_Validacion;
+        private DataGridView dgv_F8;
+        private Button button18;
+        private ColorDialog colorDialog1;
+        private Label label14;
+        private Label textocarga_F8;
+        private ProgressBar progressBar5;
         //private Button btnImportarExcelFase5_Click;
     }
 }

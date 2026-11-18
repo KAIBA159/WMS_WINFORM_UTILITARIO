@@ -1,5 +1,6 @@
 using ExcelDataReader;
 using System.Data;
+using System.Data.Odbc;
 using System.Text;
 using System.Text.Json;
 
@@ -24,6 +25,12 @@ namespace WinFormsApp1
         private DataTable dtExcelFase6;
         private DataTable dtExcelFase7;
         private string rutaLogFase7 = "";
+
+        private DataTable dtFase8Series;
+        private string rutaLogFase8 = "";
+
+        //private DataTable dtFase8Series;
+        private string ultimoLogFase8 = "";
 
         //string miBaseDatos = "SBO_MAKITA_PE"; // La BD de la sociedad
         //string miUsuario = "manager";
@@ -80,7 +87,7 @@ namespace WinFormsApp1
         // VARIABLES GLOBALES DE CONEXIÓN SERVICE LAYER (SAP B1)
         // ==========================================
         //private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
-        private readonly string slBaseDatosGlobal = "TEST_SBO_MAKITA_PE_04112026";
+        private readonly string slBaseDatosGlobal = "SBO_MAKITA_PE";
         private readonly string slUsuarioGlobal = "manager";
         private readonly string slClaveGlobal = "m1r1";
         private readonly string slUrlBaseGlobal = "https://192.168.1.17:50000/b1s/v1/";
@@ -901,8 +908,8 @@ namespace WinFormsApp1
 
         // Función auxiliar para mantener el código limpio
 
-        private async Task<bool> EnviarTransferencia(List<object> lineas, 
-            string ubicacion, 
+        private async Task<bool> EnviarTransferencia(List<object> lineas,
+            string ubicacion,
             System.Collections.Concurrent.ConcurrentBag<string> log)
         {
             try
@@ -6623,7 +6630,7 @@ namespace WinFormsApp1
 
         }
 
-        private async void btn2PreValidarF7_Click(object sender, EventArgs e) 
+        private async void btn2PreValidarF7_Click(object sender, EventArgs e)
         {
             // 1. Validaciones iniciales
             if (dtExcelFase7 == null || dtExcelFase7.Rows.Count == 0)
@@ -6799,7 +6806,7 @@ namespace WinFormsApp1
 
 
         }
-        
+
 
         private async void traslado_masivo_f7_Click(object sender, EventArgs e)
         {
@@ -6933,7 +6940,8 @@ namespace WinFormsApp1
                 int bloquesCompletados = 0;
 
                 // --- CONFIGURAR MÁXIMO DE LA BARRA DE PROGRESO ---
-                Invoke(new Action(() => {
+                Invoke(new Action(() =>
+                {
                     progressBarFase7.Maximum = totalBloques > 0 ? totalBloques : 1;
                     label13.Text = $"Iniciando Modo Turbo: Procesando 0 de {totalBloques} bloques...";
                 }));
@@ -6975,7 +6983,8 @@ namespace WinFormsApp1
                                 int procesadosLocal = System.Threading.Interlocked.Increment(ref bloquesCompletados);
 
                                 // --- ACTUALIZAR UI EN TIEMPO REAL ---
-                                Invoke(new Action(() => {
+                                Invoke(new Action(() =>
+                                {
                                     label13.Text = $"Trasladando inventario... {procesadosLocal} de {totalBloques} completados.";
                                     progressBarFase7.Value = procesadosLocal;
                                 }));
@@ -7052,6 +7061,515 @@ namespace WinFormsApp1
                 // Si la migración fue 100% exitosa, no hay log de errores que mostrar
                 MessageBox.Show("No hay ningún log de errores reciente para mostrar o la última migración fue 100% perfecta.", "WMS Makita - Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+
+        }
+
+        private async void Importar_datos__BD_F8(object sender, EventArgs e)
+        {
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                textocarga_F8.Text = "Consultando SOLO series de 1 a 6 caracteres en SAP HANA...";
+                Application.DoEvents();
+
+                string schema = slBaseDatosGlobal;
+
+                string sql = $@"
+                    SELECT 
+                        CAST(ROW_NUMBER() OVER (ORDER BY BASE.""ItemCode"", BASE.""SysNumber"") AS INT) AS ""Nro"",
+                        BASE.*
+                    FROM (
+                        SELECT 
+                            T0.""AbsEntry"",
+                            T0.""ItemCode"",
+                            T1.""ItemName"",
+                            T0.""SysNumber"",
+                            TRIM(IFNULL(T0.""DistNumber"", '')) AS ""Serie_Actual"",
+                            LENGTH(TRIM(IFNULL(T0.""DistNumber"", ''))) AS ""Longitud_Actual"",
+                            CAST('' AS NVARCHAR(50)) AS ""Serie_Nueva"",
+                            IFNULL(STK.""Stock_Actual"", 0) AS ""En_Stock"",
+                            IFNULL(STK.""Almacenes"", '') AS ""Almacenes"",
+                            CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 FROM ""{schema}"".""OSRN"" X
+                                    WHERE X.""ItemCode"" = T0.""ItemCode""
+                                      AND X.""AbsEntry"" <> T0.""AbsEntry""
+                                      AND TRIM(X.""DistNumber"") = LPAD(TRIM(T0.""DistNumber""), 7, '0')
+                                ) THEN 'SI'
+                                ELSE 'NO'
+                            END AS ""Existe_7Car_En_BD"",
+                            CAST('IMPORTADO' AS NVARCHAR(40)) AS ""Estado_PreValidacion"",
+                            CASE 
+                                WHEN IFNULL(STK.""Stock_Actual"", 0) > 0 
+                                    THEN 'Importado: Con stock en almacén (' || IFNULL(STK.""Almacenes"", '') || '). Pendiente pre-validar.'
+                                ELSE 'Importado: Sin stock en almacén (serie ya despachada/atendida).'
+                            END AS ""Observacion""
+                        FROM ""{schema}"".""OSRN"" T0
+                        INNER JOIN ""{schema}"".""OITM"" T1 ON T1.""ItemCode"" = T0.""ItemCode""
+                        LEFT JOIN (
+                            SELECT 
+                                Q.""ItemCode"",
+                                Q.""SysNumber"",
+                                CAST(SUM(Q.""Quantity"") AS INT) AS ""Stock_Actual"",
+                                STRING_AGG(Q.""WhsCode"", ', ') AS ""Almacenes""
+                            FROM ""{schema}"".""OSRQ"" Q
+                            WHERE Q.""Quantity"" > 0
+                            GROUP BY Q.""ItemCode"", Q.""SysNumber""
+                        ) STK ON STK.""ItemCode"" = T0.""ItemCode"" AND STK.""SysNumber"" = T0.""SysNumber""
+                        WHERE T0.""DistNumber"" IS NOT NULL
+                    ) BASE
+                    WHERE BASE.""Longitud_Actual"" BETWEEN 1 AND 6
+                    -- NOTA: Si deseas ni siquiera traer a la grilla las series ya despachadas, descomenta la línea de abajo:
+                    -- AND BASE.""En_Stock"" > 0
+                    ORDER BY BASE.""ItemCode"", BASE.""SysNumber"";";
+
+                dtFase8Series = await Task.Run(() =>
+                {
+                    DataTable dt = new DataTable();
+                    using (OdbcConnection conn = new OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        using (OdbcCommand cmd = new OdbcCommand(sql, conn))
+                        {
+                            cmd.CommandTimeout = 300;
+                            using (OdbcDataAdapter da = new OdbcDataAdapter(cmd))
+                            {
+                                da.Fill(dt);
+                            }
+                        }
+                    }
+                    return dt;
+                });
+
+                // Candado adicional en C#: garantiza que solo queden longitudes entre 1 y 6
+                for (int i = dtFase8Series.Rows.Count - 1; i >= 0; i--)
+                {
+                    int lon = Convert.ToInt32(dtFase8Series.Rows[i]["Longitud_Actual"]);
+                    if (lon < 1 || lon >= 7)
+                    {
+                        dtFase8Series.Rows.RemoveAt(i);
+                    }
+                }
+                dtFase8Series.AcceptChanges();
+
+                foreach (DataColumn col in dtFase8Series.Columns)
+                {
+                    col.ReadOnly = false;
+                }
+
+                dgv_F8.DataSource = null;
+                dgv_F8.DataSource = dtFase8Series;
+                dgv_F8.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+                // Guardar Log automático del Evento 1 (Importación)
+                GuardarLogAutomatico_F8("1_Importacion");
+
+                int conStock = dtFase8Series.AsEnumerable().Count(r => Convert.ToInt32(r["En_Stock"]) > 0);
+                int sinStock = dtFase8Series.Rows.Count - conStock;
+
+                textocarga_F8.Text = $"Importadas: {dtFase8Series.Rows.Count:N0} series (1-6 car.) | En Almacén: {conStock:N0} | Ya despachadas: {sinStock:N0}.";
+                MessageBox.Show(
+                    $"Importación (< 7 caracteres) completada:\n\n" +
+                    $"• Total series importadas: {dtFase8Series.Rows.Count:N0}\n" +
+                    $"• En almacén (En_Stock > 0): {conStock:N0}\n" +
+                    $"• Ya despachadas (En_Stock = 0): {sinStock:N0}\n\n" +
+                    $"Log automático generado en:\n{ultimoLogFase8}",
+                    "Fase 8 - Evento 1: Importación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al importar series desde HANA:\n{ex.Message}", "Error ODBC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+
+
+        }
+
+
+        // -------------------------------------------------------------------------
+        // FUNCIÓN AUXILIAR: EXPORTA EL CONTENIDO ACTUAL DE dgv_F8 (dtFase8Series) A CSV
+        // Se ejecuta automáticamente tras cada evento y manualmente con el botón "Log"
+        // -------------------------------------------------------------------------
+        private string ExportarDataTableFase8ACsv(string rutaArchivo)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            // 1. Encabezados
+            string[] columnNames = dtFase8Series.Columns.Cast<DataColumn>()
+                                                .Select(col => col.ColumnName)
+                                                .ToArray();
+            sb.AppendLine(string.Join(";", columnNames));
+
+            // 2. Filas (protegiendo Serie_Actual y Serie_Nueva para que Excel no borre los ceros a la izquierda)
+            foreach (DataRow row in dtFase8Series.Rows)
+            {
+                List<string> campos = new List<string>();
+                foreach (DataColumn col in dtFase8Series.Columns)
+                {
+                    string valor = (row[col]?.ToString() ?? "")
+                                   .Replace(";", ",")
+                                   .Replace("\r", " ")
+                                   .Replace("\n", " ")
+                                   .Trim();
+
+                    if ((col.ColumnName == "Serie_Actual" || col.ColumnName == "Serie_Nueva") && !string.IsNullOrEmpty(valor))
+                    {
+                        campos.Add($"=\"{valor}\""); // Mantiene "0001234" intacto al abrir en Excel
+                    }
+                    else
+                    {
+                        campos.Add(valor);
+                    }
+                }
+                sb.AppendLine(string.Join(";", campos));
+            }
+
+            // UTF8 con BOM (true) para que Excel reconozca tildes y caracteres especiales
+            File.WriteAllText(rutaArchivo, sb.ToString(), new UTF8Encoding(true));
+            return rutaArchivo;
+        }
+
+        private void GuardarLogAutomatico_F8(string etapaEvento)
+        {
+            if (dtFase8Series == null || dtFase8Series.Rows.Count == 0) return;
+
+            try
+            {
+                string carpetaLogs = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs_Fase8");
+                Directory.CreateDirectory(carpetaLogs);
+                ultimoLogFase8 = Path.Combine(carpetaLogs, $"Log_F8_{etapaEvento}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                ExportarDataTableFase8ACsv(ultimoLogFase8);
+            }
+            catch
+            {
+                // Si el archivo estuviera bloqueado, no interrumpe el flujo principal
+            }
+        }
+
+        private void Pre_Validacion_Click(object sender, EventArgs e)
+        {
+
+            if (dtFase8Series == null || dtFase8Series.Rows.Count == 0)
+            {
+                MessageBox.Show("Primero debe importar los datos con el botón 'Importar_datos__BD'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Cursor = Cursors.WaitCursor;
+
+            int listos = 0;
+            int omitidosSinStock = 0;
+            int colisionBD = 0;
+            int colisionLote = 0;
+            int invalidos = 0;
+
+            // Diccionario para detectar colisiones internas entre series con stock del mismo SKU (ej. "1234" y "01234")
+            var conteoDestinoPorSku = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Primera pasada: calcular Serie_Nueva (7 caracteres) para las series en stock
+            foreach (DataRow row in dtFase8Series.Rows)
+            {
+                string itemCode = row["ItemCode"].ToString().Trim();
+                string serieActual = row["Serie_Actual"].ToString().Trim();
+                int enStock = Convert.ToInt32(row["En_Stock"]);
+
+                if (serieActual.Length >= 1 && serieActual.Length < 7)
+                {
+                    string propuesta = serieActual.PadLeft(7, '0');
+                    row["Serie_Nueva"] = propuesta;
+
+                    // Solo contamos para colisión de lote las que realmente se van a actualizar (En_Stock > 0)
+                    if (enStock > 0)
+                    {
+                        string key = $"{itemCode}||{propuesta}";
+                        conteoDestinoPorSku[key] = conteoDestinoPorSku.TryGetValue(key, out int c) ? c + 1 : 1;
+                    }
+                }
+            }
+
+            // 2. Segunda pasada: asignar Estado_PreValidacion y detallar la columna Observacion
+            foreach (DataRow row in dtFase8Series.Rows)
+            {
+                string itemCode = row["ItemCode"].ToString().Trim();
+                string serieActual = row["Serie_Actual"].ToString().Trim();
+                string serieNueva = row["Serie_Nueva"].ToString().Trim();
+                string existeEnBD = row["Existe_7Car_En_BD"].ToString().Trim();
+                string almacenes = row["Almacenes"].ToString().Trim();
+                int enStock = Convert.ToInt32(row["En_Stock"]);
+                int lenActual = serieActual.Length;
+
+                // REGLA 1: Si ya salió con Guía de Remisión / Factura (En_Stock == 0), NO SE MODIFICA
+                if (enStock <= 0)
+                {
+                    row["Estado_PreValidacion"] = "OMITIR_SIN_STOCK";
+                    row["Observacion"] = $"No se modifica: Serie sin stock en almacén (ya despachada / atendida en Guía).";
+                    omitidosSinStock++;
+                    continue;
+                }
+
+                // REGLA 2: Filtrar etiquetas inválidas ("S/N", "SIN SERIE" o puros ceros "0", "00")
+                if (serieActual.Equals("S/N", StringComparison.OrdinalIgnoreCase) ||
+                    serieActual.Equals("SIN SERIE", StringComparison.OrdinalIgnoreCase) ||
+                    serieActual.TrimStart('0').Length == 0)
+                {
+                    row["Estado_PreValidacion"] = "OMITIR_INVALIDO";
+                    row["Observacion"] = $"No se modifica: Serie inválida ('{serieActual}') en almacén {almacenes}.";
+                    invalidos++;
+                    continue;
+                }
+
+                // REGLA 3: Validar si el código de 7 caracteres ya existe en OSRN para ese mismo SKU
+                if (existeEnBD == "SI")
+                {
+                    row["Estado_PreValidacion"] = "ERROR_YA_EXISTE_BD";
+                    row["Observacion"] = $"Bloqueado: La serie '{serieNueva}' ya existe en OSRN para el artículo {itemCode}.";
+                    colisionBD++;
+                    continue;
+                }
+
+                // REGLA 4: Validar si dos unidades en stock del mismo SKU colisionan al rellenar con ceros
+                string key = $"{itemCode}||{serieNueva}";
+                if (conteoDestinoPorSku.TryGetValue(key, out int repetidos) && repetidos > 1)
+                {
+                    row["Estado_PreValidacion"] = "ERROR_COLISION_LOTE";
+                    row["Observacion"] = $"Bloqueado: Hay {repetidos} series en stock de {itemCode} que darían '{serieNueva}'.";
+                    colisionLote++;
+                    continue;
+                }
+
+                // REGLA 5: Cumple todas las condiciones (En_Stock > 0, longitud 1..6, sin duplicidad)
+                row["Estado_PreValidacion"] = "LISTO";
+                row["Observacion"] = $"Pre-validado OK (Almacén {almacenes}): '{serieActual}' ({lenActual} car.) -> '{serieNueva}' (7 car.).";
+                listos++;
+            }
+
+            // 3. Pintar filas en dgv_F8 según su estado
+            foreach (DataGridViewRow dgvRow in dgv_F8.Rows)
+            {
+                if (dgvRow.IsNewRow) continue;
+                string estado = dgvRow.Cells["Estado_PreValidacion"].Value?.ToString() ?? "";
+
+                if (estado == "LISTO")
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220); // Verde claro (se actualizará)
+                else if (estado == "OMITIR_SIN_STOCK")
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240); // Gris claro (ya despachado)
+                else
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220); // Rojo claro (colisión/inválido)
+            }
+
+            // Guardar Log automático del Evento 2 (Pre-Validación)
+            GuardarLogAutomatico_F8("2_PreValidacion");
+
+            Cursor = Cursors.Default;
+
+            textocarga_F8.Text = $"Pre-Validación: {listos:N0} LISTOS en almacén | {omitidosSinStock:N0} Omitidos (ya despachados) | {colisionBD + colisionLote:N0} Colisiones.";
+
+            string resumen =
+                $"RESUMEN DE PRE-VALIDACIÓN (Total en grilla: {dtFase8Series.Rows.Count:N0})\n" +
+                $"========================================================\n" +
+                $"✔ LISTOS PARA ACTUALIZAR (En almacén, < 7 car.): {listos:N0}\n\n" +
+                $"⏭ OMITIDOS POR ESTAR YA DESPACHADOS (En_Stock = 0): {omitidosSinStock:N0}\n\n" +
+                $"✖ BLOQUEADOS POR DUPLICIDAD / INVÁLIDOS:\n" +
+                $"   • Ya existe la serie de 7 car. en OSRN: {colisionBD:N0}\n" +
+                $"   • Colisión interna en el mismo lote: {colisionLote:N0}\n" +
+                $"   • Inválidos (S/N o solo ceros): {invalidos:N0}\n" +
+                $"========================================================\n" +
+                $"Log automático guardado en:\n{ultimoLogFase8}";
+
+            MessageBox.Show(resumen, "Fase 8 - Evento 2: Pre-Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+
+        }
+
+        private void Log_F8_Click(object sender, EventArgs e)
+        {
+
+
+            if (dtFase8Series == null || dtFase8Series.Rows.Count == 0)
+            {
+                MessageBox.Show("No hay datos en el DataGridView (dgv_F8) para exportar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (SaveFileDialog sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "Archivo CSV para Excel (*.csv)|*.csv";
+                sfd.Title = "Exportar contenido actual de dgv_F8 (con Observaciones)";
+                sfd.FileName = $"Export_dgv_F8_Series_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    ExportarDataTableFase8ACsv(sfd.FileName);
+                    MessageBox.Show($"El contenido completo del DataGridView (incluyendo 'Estado_PreValidacion' y 'Observacion') se exportó en:\n\n{sfd.FileName}",
+                        "Fase 8 - Log Exportado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+
+
+
+        }
+
+        private async void Actualizar_Masivo_Serie_Click(object sender, EventArgs e)
+        {
+
+            if (dtFase8Series == null || dtFase8Series.Rows.Count == 0)
+            {
+                MessageBox.Show("No hay datos cargados en la grilla.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DataRow[] filasListas = dtFase8Series.Select("Estado_PreValidacion = 'LISTO'");
+            if (filasListas.Length == 0)
+            {
+                MessageBox.Show("No hay series en estado 'LISTO' para actualizar. Ejecute primero 'Pre_Validación'.",
+                    "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string tokenLimpio = sessionToken.Trim();
+            if (tokenLimpio.Contains("B1SESSION="))
+            {
+                tokenLimpio = tokenLimpio.Substring(tokenLimpio.IndexOf("B1SESSION=") + 10).Split(';')[0].Trim();
+            }
+
+            if (string.IsNullOrEmpty(tokenLimpio))
+            {
+                MessageBox.Show("Primero debe presionar 'Generar Token' para iniciar sesión en Service Layer.",
+                    "Token Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int cantidadHilos = 10; // 10 hilos concurrentes para aprovechar los 10 nodos de Service Layer
+
+            DialogResult confirm = MessageBox.Show(
+                $"Se actualizarán {filasListas.Length:N0} series en '{slBaseDatosGlobal}' usando {cantidadHilos} hilos en paralelo.\n\n¿Desea iniciar la actualización masiva?",
+                "Confirmar Actualización Masiva (10 Hilos)", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes) return;
+
+            progressBar5.Minimum = 0;
+            progressBar5.Maximum = filasListas.Length;
+            progressBar5.Value = 0;
+
+            int exitosos = 0;
+            int fallidos = 0;
+            int procesados = 0;
+            int totalFilas = filasListas.Length;
+
+            // Desvinculamos temporalmente el DataGridView durante el procesamiento paralelo
+            // para evitar bloqueos visuales y errores Cross-Thread al escribir en el DataTable
+            dgv_F8.SuspendLayout();
+            dgv_F8.DataSource = null;
+
+            var opcionesParalelas = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = cantidadHilos
+            };
+
+            await Parallel.ForEachAsync(filasListas, opcionesParalelas, async (row, ct) =>
+            {
+                int absEntry = Convert.ToInt32(row["AbsEntry"]);
+                string serieAnterior = row["Serie_Actual"].ToString().Trim();
+                string serieNueva = row["Serie_Nueva"].ToString().Trim();
+                string almacenes = row["Almacenes"].ToString().Trim();
+
+                string nuevoEstado = "";
+                string nuevaObs = "";
+
+                try
+                {
+                    string url = $"{slUrlBaseGlobal}SerialNumberDetails({absEntry})";
+                    string jsonPayload = JsonSerializer.Serialize(new
+                    {
+                        SerialNumber = serieNueva // Actualiza OSRN."DistNumber"
+                    });
+
+                    using (var request = new HttpRequestMessage(new HttpMethod("PATCH"), url))
+                    {
+                        // Enviamos B1SESSION sin fijar ROUTEID para que el balanceador reparta la carga entre los 10 nodos
+                        request.Headers.Add("Cookie", $"B1SESSION={tokenLimpio}");
+                        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                        using (HttpResponseMessage response = await client.SendAsync(request, ct))
+                        {
+                            if (response.IsSuccessStatusCode)
+                            {
+                                Interlocked.Increment(ref exitosos);
+                                nuevoEstado = "ACTUALIZADO_OK";
+                                nuevaObs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Actualizado OK en SAP: '{serieAnterior}' -> '{serieNueva}' (Almacén: {almacenes}).";
+                            }
+                            else
+                            {
+                                Interlocked.Increment(ref fallidos);
+                                string errorBody = await response.Content.ReadAsStringAsync(ct);
+                                string errorLimpio = errorBody.Replace("\r", " ").Replace("\n", " ").Replace(";", ",");
+
+                                nuevoEstado = "ERROR_SL";
+                                nuevaObs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error HTTP {(int)response.StatusCode}: {errorLimpio}";
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref fallidos);
+                    string msgEx = ex.Message.Replace("\r", " ").Replace("\n", " ").Replace(";", ",");
+                    nuevoEstado = "ERROR_EXCEPCION";
+                    nuevaObs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Excepción: {msgEx}";
+                }
+
+                // Escritura sincronizada en la fila del DataTable
+                lock (dtFase8Series)
+                {
+                    row["Estado_PreValidacion"] = nuevoEstado;
+                    row["Observacion"] = nuevaObs;
+                }
+
+                int actual = Interlocked.Increment(ref procesados);
+
+                // Actualización Thread-Safe de la barra de progreso cada 10 registros o al finalizar
+                if (actual % 10 == 0 || actual == totalFilas)
+                {
+                    this.BeginInvoke((MethodInvoker)delegate
+                    {
+                        progressBar5.Value = Math.Min(actual, progressBar5.Maximum);
+                        double pct = (actual * 100.0) / totalFilas;
+                        textocarga_F8.Text = $"Actualizando (10 hilos): {actual:N0} / {totalFilas:N0} ({pct:0.0}%) | OK: {exitosos:N0} | Errores: {fallidos:N0}";
+                    });
+                }
+            });
+
+            // Volvemos a enlazar y colorear el DataGridView una vez concluido el lote paralelo
+            dgv_F8.DataSource = dtFase8Series;
+            dgv_F8.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+            foreach (DataGridViewRow dgvRow in dgv_F8.Rows)
+            {
+                if (dgvRow.IsNewRow) continue;
+                string estado = dgvRow.Cells["Estado_PreValidacion"].Value?.ToString() ?? "";
+
+                if (estado == "ACTUALIZADO_OK")
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(180, 240, 180);
+                else if (estado.StartsWith("ERROR"))
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(255, 190, 190);
+            }
+            dgv_F8.ResumeLayout();
+
+            // Guardar Log automático del Evento 3 (Actualización Masiva)
+            GuardarLogAutomatico_F8("3_ActualizacionMasiva");
+
+            MessageBox.Show(
+                $"Actualización masiva con 10 hilos finalizada.\n\n" +
+                $"• Total procesados: {procesados:N0}\n" +
+                $"• Exitosos: {exitosos:N0}\n" +
+                $"• Fallidos: {fallidos:N0}\n\n" +
+                $"Log completo guardado automáticamente en:\n{ultimoLogFase8}",
+                "Fase 8 - Evento 3: Actualización Completada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
 
         }
     }
