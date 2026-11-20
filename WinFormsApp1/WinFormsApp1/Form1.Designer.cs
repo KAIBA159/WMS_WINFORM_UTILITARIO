@@ -127,12 +127,29 @@
             Pre_Validacion = new Button();
             dgv_F8 = new DataGridView();
             button18 = new Button();
+            tabPage9 = new TabPage();
+            lb1_F9 = new Label();
+            progressBar9 = new ProgressBar();
+            Modificar_Serie = new Button();
+            button21 = new Button();
+            button20 = new Button();
+            dgv_F9 = new DataGridView();
+            label15 = new Label();
+            button19 = new Button();
             textBox1 = new TextBox();
             button1 = new Button();
             label6 = new Label();
             label7 = new Label();
             descripcionOperacion = new Label();
             colorDialog1 = new ColorDialog();
+            tabPage10 = new TabPage();
+            button22 = new Button();
+            dataGridView3 = new DataGridView();
+            label16 = new Label();
+            textBox2 = new TextBox();
+            button23 = new Button();
+            button24 = new Button();
+            button25 = new Button();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -155,6 +172,10 @@
             ((System.ComponentModel.ISupportInitialize)dgvFase7).BeginInit();
             tabPage8.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgv_F8).BeginInit();
+            tabPage9.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgv_F9).BeginInit();
+            tabPage10.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
             SuspendLayout();
             // 
             // lblbdcon
@@ -186,6 +207,8 @@
             tabControl1.Controls.Add(tabPage6);
             tabControl1.Controls.Add(tabPage7);
             tabControl1.Controls.Add(tabPage8);
+            tabControl1.Controls.Add(tabPage9);
+            tabControl1.Controls.Add(tabPage10);
             tabControl1.Location = new Point(16, 85);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -1147,6 +1170,95 @@
             button18.UseVisualStyleBackColor = true;
             button18.Click += Importar_datos__BD_F8;
             // 
+            // tabPage9
+            // 
+            tabPage9.Controls.Add(lb1_F9);
+            tabPage9.Controls.Add(progressBar9);
+            tabPage9.Controls.Add(Modificar_Serie);
+            tabPage9.Controls.Add(button21);
+            tabPage9.Controls.Add(button20);
+            tabPage9.Controls.Add(dgv_F9);
+            tabPage9.Controls.Add(label15);
+            tabPage9.Controls.Add(button19);
+            tabPage9.Location = new Point(4, 24);
+            tabPage9.Name = "tabPage9";
+            tabPage9.Size = new Size(1051, 646);
+            tabPage9.TabIndex = 9;
+            tabPage9.Text = "Fase_9";
+            tabPage9.UseVisualStyleBackColor = true;
+            // 
+            // lb1_F9
+            // 
+            lb1_F9.AutoSize = true;
+            lb1_F9.Location = new Point(21, 393);
+            lb1_F9.Name = "lb1_F9";
+            lb1_F9.Size = new Size(100, 15);
+            lb1_F9.TabIndex = 7;
+            lb1_F9.Text = "Texto progressBar";
+            // 
+            // progressBar9
+            // 
+            progressBar9.Location = new Point(21, 421);
+            progressBar9.Name = "progressBar9";
+            progressBar9.Size = new Size(441, 23);
+            progressBar9.TabIndex = 6;
+            // 
+            // Modificar_Serie
+            // 
+            Modificar_Serie.Location = new Point(547, 338);
+            Modificar_Serie.Name = "Modificar_Serie";
+            Modificar_Serie.Size = new Size(192, 23);
+            Modificar_Serie.TabIndex = 5;
+            Modificar_Serie.Text = "Modificar_Serie";
+            Modificar_Serie.UseVisualStyleBackColor = true;
+            Modificar_Serie.Click += Modificar_Serie_F9;
+            // 
+            // button21
+            // 
+            button21.Location = new Point(317, 338);
+            button21.Name = "button21";
+            button21.Size = new Size(145, 23);
+            button21.TabIndex = 4;
+            button21.Text = "log";
+            button21.UseVisualStyleBackColor = true;
+            // 
+            // button20
+            // 
+            button20.Location = new Point(21, 338);
+            button20.Name = "button20";
+            button20.Size = new Size(239, 23);
+            button20.TabIndex = 3;
+            button20.Text = "pre_validar";
+            button20.UseVisualStyleBackColor = true;
+            button20.Click += pre_validar;
+            // 
+            // dgv_F9
+            // 
+            dgv_F9.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgv_F9.Location = new Point(21, 73);
+            dgv_F9.Name = "dgv_F9";
+            dgv_F9.Size = new Size(920, 244);
+            dgv_F9.TabIndex = 2;
+            // 
+            // label15
+            // 
+            label15.AutoSize = true;
+            label15.Location = new Point(23, 16);
+            label15.Name = "label15";
+            label15.Size = new Size(44, 15);
+            label15.TabIndex = 1;
+            label15.Text = "label15";
+            // 
+            // button19
+            // 
+            button19.Location = new Point(21, 38);
+            button19.Name = "button19";
+            button19.Size = new Size(239, 23);
+            button19.TabIndex = 0;
+            button19.Text = "Importar_Excel_Serie";
+            button19.UseVisualStyleBackColor = true;
+            button19.Click += Importar_Excel_Serie;
+            // 
             // textBox1
             // 
             textBox1.Location = new Point(16, 6);
@@ -1190,6 +1302,82 @@
             descripcionOperacion.Size = new Size(38, 15);
             descripcionOperacion.TabIndex = 27;
             descripcionOperacion.Text = "label9";
+            // 
+            // tabPage10
+            // 
+            tabPage10.Controls.Add(button25);
+            tabPage10.Controls.Add(button24);
+            tabPage10.Controls.Add(button23);
+            tabPage10.Controls.Add(textBox2);
+            tabPage10.Controls.Add(label16);
+            tabPage10.Controls.Add(dataGridView3);
+            tabPage10.Controls.Add(button22);
+            tabPage10.Location = new Point(4, 24);
+            tabPage10.Name = "tabPage10";
+            tabPage10.Size = new Size(1051, 646);
+            tabPage10.TabIndex = 10;
+            tabPage10.Text = "Fase10";
+            tabPage10.UseVisualStyleBackColor = true;
+            // 
+            // button22
+            // 
+            button22.Location = new Point(16, 27);
+            button22.Name = "button22";
+            button22.Size = new Size(75, 23);
+            button22.TabIndex = 0;
+            button22.Text = "button22";
+            button22.UseVisualStyleBackColor = true;
+            // 
+            // dataGridView3
+            // 
+            dataGridView3.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView3.Location = new Point(16, 65);
+            dataGridView3.Name = "dataGridView3";
+            dataGridView3.Size = new Size(625, 277);
+            dataGridView3.TabIndex = 1;
+            // 
+            // label16
+            // 
+            label16.AutoSize = true;
+            label16.Location = new Point(311, 30);
+            label16.Name = "label16";
+            label16.Size = new Size(64, 15);
+            label16.TabIndex = 2;
+            label16.Text = "IdAlmacen";
+            // 
+            // textBox2
+            // 
+            textBox2.Location = new Point(397, 27);
+            textBox2.Name = "textBox2";
+            textBox2.Size = new Size(117, 23);
+            textBox2.TabIndex = 3;
+            // 
+            // button23
+            // 
+            button23.Location = new Point(16, 348);
+            button23.Name = "button23";
+            button23.Size = new Size(116, 23);
+            button23.TabIndex = 4;
+            button23.Text = "Pre_Validar";
+            button23.UseVisualStyleBackColor = true;
+            // 
+            // button24
+            // 
+            button24.Location = new Point(212, 348);
+            button24.Name = "button24";
+            button24.Size = new Size(126, 23);
+            button24.TabIndex = 5;
+            button24.Text = "Log";
+            button24.UseVisualStyleBackColor = true;
+            // 
+            // button25
+            // 
+            button25.Location = new Point(444, 348);
+            button25.Name = "button25";
+            button25.Size = new Size(150, 23);
+            button25.TabIndex = 6;
+            button25.Text = "Sincerar_Serie";
+            button25.UseVisualStyleBackColor = true;
             // 
             // lblBaseDatos
             // 
@@ -1240,6 +1428,12 @@
             tabPage8.ResumeLayout(false);
             tabPage8.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgv_F8).EndInit();
+            tabPage9.ResumeLayout(false);
+            tabPage9.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgv_F9).EndInit();
+            tabPage10.ResumeLayout(false);
+            tabPage10.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -1352,6 +1546,23 @@
         private Label label14;
         private Label textocarga_F8;
         private ProgressBar progressBar5;
+        private TabPage tabPage9;
+        private Label label15;
+        private Button button19;
+        private Label lb1_F9;
+        private ProgressBar progressBar9;
+        private Button Modificar_Serie;
+        private Button button21;
+        private Button button20;
+        private DataGridView dgv_F9;
+        private TabPage tabPage10;
+        private Label label16;
+        private DataGridView dataGridView3;
+        private Button button22;
+        private Button button25;
+        private Button button24;
+        private Button button23;
+        private TextBox textBox2;
         //private Button btnImportarExcelFase5_Click;
     }
 }

@@ -32,6 +32,15 @@ namespace WinFormsApp1
         //private DataTable dtFase8Series;
         private string ultimoLogFase8 = "";
 
+
+        // ==========================================
+        // VARIABLES GLOBALES PARA FASE 9 (Sinceramiento de Series por Excel)
+        // ==========================================
+        private DataTable dtFase9Series;
+        private string ultimoLogFase9 = "";
+        private readonly string almacenSinceramientoF9 = "ALM01"; // Almacén objetivo (ej. ALM01 = 130 uds.)
+        private readonly bool normalizar7CaracteresF9 = true;    // true: "113720" -> "0113720" | false: tal cual Excel
+
         //string miBaseDatos = "SBO_MAKITA_PE"; // La BD de la sociedad
         //string miUsuario = "manager";
 
@@ -7253,6 +7262,8 @@ namespace WinFormsApp1
         private void Pre_Validacion_Click(object sender, EventArgs e)
         {
 
+
+
             if (dtFase8Series == null || dtFase8Series.Rows.Count == 0)
             {
                 MessageBox.Show("Primero debe importar los datos con el botón 'Importar_datos__BD'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -7261,33 +7272,38 @@ namespace WinFormsApp1
 
             Cursor = Cursors.WaitCursor;
 
-            int listos = 0;
-            int omitidosSinStock = 0;
+            int listosTotal = 0;
+            int listosConStock = 0;
+            int listosSinStock = 0;
             int colisionBD = 0;
             int colisionLote = 0;
             int invalidos = 0;
 
-            // Diccionario para detectar colisiones internas entre series con stock del mismo SKU (ej. "1234" y "01234")
+            // Diccionario global para detectar colisiones internas en TODO el universo (con stock + históricos)
             var conteoDestinoPorSku = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            // 1. Primera pasada: calcular Serie_Nueva (7 caracteres) para las series en stock
+            // 1. Primera pasada: calcular Serie_Nueva (7 caracteres) para TODAS las series válidas (< 7 car.)
             foreach (DataRow row in dtFase8Series.Rows)
             {
                 string itemCode = row["ItemCode"].ToString().Trim();
                 string serieActual = row["Serie_Actual"].ToString().Trim();
-                int enStock = Convert.ToInt32(row["En_Stock"]);
+
+                // Ignorar etiquetas inválidas en el conteo de colisiones
+                if (serieActual.Equals("S/N", StringComparison.OrdinalIgnoreCase) ||
+                    serieActual.Equals("SIN SERIE", StringComparison.OrdinalIgnoreCase) ||
+                    serieActual.TrimStart('0').Length == 0)
+                {
+                    continue;
+                }
 
                 if (serieActual.Length >= 1 && serieActual.Length < 7)
                 {
                     string propuesta = serieActual.PadLeft(7, '0');
                     row["Serie_Nueva"] = propuesta;
 
-                    // Solo contamos para colisión de lote las que realmente se van a actualizar (En_Stock > 0)
-                    if (enStock > 0)
-                    {
-                        string key = $"{itemCode}||{propuesta}";
-                        conteoDestinoPorSku[key] = conteoDestinoPorSku.TryGetValue(key, out int c) ? c + 1 : 1;
-                    }
+                    // Contabilizamos TODOS (En_Stock > 0 y En_Stock = 0) porque todos se actualizarán a 7 caracteres
+                    string key = $"{itemCode}||{propuesta}";
+                    conteoDestinoPorSku[key] = conteoDestinoPorSku.TryGetValue(key, out int c) ? c + 1 : 1;
                 }
             }
 
@@ -7302,27 +7318,18 @@ namespace WinFormsApp1
                 int enStock = Convert.ToInt32(row["En_Stock"]);
                 int lenActual = serieActual.Length;
 
-                // REGLA 1: Si ya salió con Guía de Remisión / Factura (En_Stock == 0), NO SE MODIFICA
-                if (enStock <= 0)
-                {
-                    row["Estado_PreValidacion"] = "OMITIR_SIN_STOCK";
-                    row["Observacion"] = $"No se modifica: Serie sin stock en almacén (ya despachada / atendida en Guía).";
-                    omitidosSinStock++;
-                    continue;
-                }
-
-                // REGLA 2: Filtrar etiquetas inválidas ("S/N", "SIN SERIE" o puros ceros "0", "00")
+                // REGLA 1: Filtrar únicamente etiquetas inválidas ("S/N", "SIN SERIE" o puros ceros "0", "00")
                 if (serieActual.Equals("S/N", StringComparison.OrdinalIgnoreCase) ||
                     serieActual.Equals("SIN SERIE", StringComparison.OrdinalIgnoreCase) ||
                     serieActual.TrimStart('0').Length == 0)
                 {
                     row["Estado_PreValidacion"] = "OMITIR_INVALIDO";
-                    row["Observacion"] = $"No se modifica: Serie inválida ('{serieActual}') en almacén {almacenes}.";
+                    row["Observacion"] = $"No se modifica: Serie inválida ('{serieActual}').";
                     invalidos++;
                     continue;
                 }
 
-                // REGLA 3: Validar si el código de 7 caracteres ya existe en OSRN para ese mismo SKU
+                // REGLA 2: Validar si el código de 7 caracteres ya existe en OSRN para ese mismo SKU
                 if (existeEnBD == "SI")
                 {
                     row["Estado_PreValidacion"] = "ERROR_YA_EXISTE_BD";
@@ -7331,23 +7338,34 @@ namespace WinFormsApp1
                     continue;
                 }
 
-                // REGLA 4: Validar si dos unidades en stock del mismo SKU colisionan al rellenar con ceros
+                // REGLA 3: Validar si dos registros del mismo SKU (en stock o históricos) colisionan al rellenar con ceros
                 string key = $"{itemCode}||{serieNueva}";
                 if (conteoDestinoPorSku.TryGetValue(key, out int repetidos) && repetidos > 1)
                 {
                     row["Estado_PreValidacion"] = "ERROR_COLISION_LOTE";
-                    row["Observacion"] = $"Bloqueado: Hay {repetidos} series en stock de {itemCode} que darían '{serieNueva}'.";
+                    row["Observacion"] = $"Bloqueado: Hay {repetidos} registros de {itemCode} que darían '{serieNueva}' (ej. con y sin cero previo).";
                     colisionLote++;
                     continue;
                 }
 
-                // REGLA 5: Cumple todas las condiciones (En_Stock > 0, longitud 1..6, sin duplicidad)
+                // REGLA 4: Aprobado global (tanto en almacén como históricos para Garantías)
                 row["Estado_PreValidacion"] = "LISTO";
-                row["Observacion"] = $"Pre-validado OK (Almacén {almacenes}): '{serieActual}' ({lenActual} car.) -> '{serieNueva}' (7 car.).";
-                listos++;
+                listosTotal++;
+
+                if (enStock > 0)
+                {
+                    listosConStock++;
+                    row["Observacion"] = $"Pre-validado OK [En Almacén: {almacenes} | Stock: {enStock}]: '{serieActual}' ({lenActual} car.) -> '{serieNueva}' (7 car.).";
+                }
+                else
+                {
+                    listosSinStock++;
+                    row["Observacion"] = $"Pre-validado OK [Histórico / Garantía | Stock: 0]: '{serieActual}' ({lenActual} car.) -> '{serieNueva}' (7 car.).";
+                }
             }
 
-            // 3. Pintar filas en dgv_F8 según su estado
+            // 3. Pintar filas en dgv_F8 suspendiendo el repintado para evitar lentitud con +220,000 filas
+            dgv_F8.SuspendLayout();
             foreach (DataGridViewRow dgvRow in dgv_F8.Rows)
             {
                 if (dgvRow.IsNewRow) continue;
@@ -7355,24 +7373,26 @@ namespace WinFormsApp1
 
                 if (estado == "LISTO")
                     dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220); // Verde claro (se actualizará)
-                else if (estado == "OMITIR_SIN_STOCK")
-                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240); // Gris claro (ya despachado)
+                else if (estado == "OMITIR_INVALIDO")
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240); // Gris claro (inválido)
                 else
-                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220); // Rojo claro (colisión/inválido)
+                    dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220); // Rojo claro (colisión)
             }
+            dgv_F8.ResumeLayout();
 
             // Guardar Log automático del Evento 2 (Pre-Validación)
             GuardarLogAutomatico_F8("2_PreValidacion");
 
             Cursor = Cursors.Default;
 
-            textocarga_F8.Text = $"Pre-Validación: {listos:N0} LISTOS en almacén | {omitidosSinStock:N0} Omitidos (ya despachados) | {colisionBD + colisionLote:N0} Colisiones.";
+            textocarga_F8.Text = $"Pre-Validación Global: {listosTotal:N0} LISTOS ({listosConStock:N0} en almacén + {listosSinStock:N0} históricos) | {colisionBD + colisionLote:N0} Colisiones.";
 
             string resumen =
-                $"RESUMEN DE PRE-VALIDACIÓN (Total en grilla: {dtFase8Series.Rows.Count:N0})\n" +
+                $"RESUMEN DE PRE-VALIDACIÓN GLOBAL (Total en grilla: {dtFase8Series.Rows.Count:N0})\n" +
                 $"========================================================\n" +
-                $"✔ LISTOS PARA ACTUALIZAR (En almacén, < 7 car.): {listos:N0}\n\n" +
-                $"⏭ OMITIDOS POR ESTAR YA DESPACHADOS (En_Stock = 0): {omitidosSinStock:N0}\n\n" +
+                $"✔ TOTAL LISTOS PARA ACTUALIZAR A 7 CARACTERES: {listosTotal:N0}\n" +
+                $"   • Con stock en almacén (WMS activo): {listosConStock:N0}\n" +
+                $"   • Históricos / Ya despachados (Garantías): {listosSinStock:N0}\n\n" +
                 $"✖ BLOQUEADOS POR DUPLICIDAD / INVÁLIDOS:\n" +
                 $"   • Ya existe la serie de 7 car. en OSRN: {colisionBD:N0}\n" +
                 $"   • Colisión interna en el mismo lote: {colisionLote:N0}\n" +
@@ -7380,7 +7400,8 @@ namespace WinFormsApp1
                 $"========================================================\n" +
                 $"Log automático guardado en:\n{ultimoLogFase8}";
 
-            MessageBox.Show(resumen, "Fase 8 - Evento 2: Pre-Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(resumen, "Fase 8 - Evento 2: Pre-Validación Global", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
 
 
         }
@@ -7572,5 +7593,633 @@ namespace WinFormsApp1
 
 
         }
+
+        private string GuardarLogAutomatico(DataTable dt, string carpeta, string prefijo)
+        {
+            if (dt == null || dt.Rows.Count == 0) return "";
+            try
+            {
+                string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, carpeta);
+                Directory.CreateDirectory(dir);
+                string ruta = Path.Combine(dir, $"{prefijo}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                //ExportarGrillaACSV(dt, ruta);
+                //ExportarGrillaACsv
+                //ExportarGrillaACSV
+                ExportarGrillaACsv_V2(dt, ruta);
+
+
+
+                return ruta;
+            }
+            catch { return ""; }
+        }
+
+
+        private void ExportarGrillaACsv(DataTable dt, string rutaArchivo)
+        {
+            StringBuilder sb = new StringBuilder();
+            string[] headers = dt.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray();
+            sb.AppendLine(string.Join(";", headers));
+
+            foreach (DataRow row in dt.Rows)
+            {
+                List<string> campos = new List<string>();
+                foreach (DataColumn col in dt.Columns)
+                {
+                    string val = (row[col]?.ToString() ?? "").Replace(";", ",").Replace("\r", " ").Replace("\n", " ").Trim();
+                    if ((col.ColumnName == "Serie_Actual" || col.ColumnName == "Serie_Nueva") && !string.IsNullOrEmpty(val))
+                        campos.Add($"=\"{val}\""); // Mantiene ceros a la izquierda en Excel
+                    else
+                        campos.Add(val);
+                }
+                sb.AppendLine(string.Join(";", campos));
+            }
+            File.WriteAllText(rutaArchivo, sb.ToString(), new UTF8Encoding(true));
+        }
+
+        // -------------------------------------------------------------------------
+        // HELPER COMPARTIDO 1: EXPORTAR CUALQUIER DATATABLE (F8 / F9) A CSV PARA EXCEL
+        // -------------------------------------------------------------------------
+        private void ExportarGrillaACsv_V2(DataTable dt, string rutaArchivo)
+        {
+            StringBuilder sb = new StringBuilder();
+            string[] headers = dt.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray();
+            sb.AppendLine(string.Join(";", headers));
+
+            foreach (DataRow row in dt.Rows)
+            {
+                List<string> campos = new List<string>();
+                foreach (DataColumn col in dt.Columns)
+                {
+                    string val = (row[col]?.ToString() ?? "").Replace(";", ",").Replace("\r", " ").Replace("\n", " ").Trim();
+                    if ((col.ColumnName == "Serie_Actual" || col.ColumnName == "Serie_Nueva") && !string.IsNullOrEmpty(val))
+                        campos.Add($"=\"{val}\""); // Mantiene ceros a la izquierda en Excel
+                    else
+                        campos.Add(val);
+                }
+                sb.AppendLine(string.Join(";", campos));
+            }
+            File.WriteAllText(rutaArchivo, sb.ToString(), new UTF8Encoding(true));
+        }
+
+
+        // -------------------------------------------------------------------------
+        // HELPER COMPARTIDO 2: MOTOR PARALELO (10 HILOS) DE PATCH SerialNumberDetails
+        // -------------------------------------------------------------------------
+        private async Task<(int procesados, int exitosos, int fallidos, TimeSpan duracion)> EjecutarPatchMasivoSeriesAsync(
+            DataTable dtOrigen, DataGridView dgvDestino, ProgressBar pbDestino, Label lblDestino, int hilos = 10)
+        {
+            DataRow[] filasListas = dtOrigen.Select("Estado_PreValidacion = 'LISTO'");
+            string tokenLimpio = sessionToken.Contains("B1SESSION=")
+                ? sessionToken.Substring(sessionToken.IndexOf("B1SESSION=") + 10).Split(';')[0].Trim()
+                : sessionToken.Trim();
+
+            pbDestino.Minimum = 0;
+            pbDestino.Maximum = filasListas.Length;
+            pbDestino.Value = 0;
+
+            int exitosos = 0, fallidos = 0, procesados = 0, total = filasListas.Length;
+            dgvDestino.SuspendLayout();
+            dgvDestino.DataSource = null;
+
+            var cronometro = System.Diagnostics.Stopwatch.StartNew();
+
+            await Parallel.ForEachAsync(filasListas, new ParallelOptions { MaxDegreeOfParallelism = hilos }, async (row, ct) =>
+            {
+                int absEntry = Convert.ToInt32(row["AbsEntry"]);
+                string serieAnt = row["Serie_Actual"].ToString().Trim();
+                string serieNue = row["Serie_Nueva"].ToString().Trim();
+                string estado = "", obs = "";
+
+                try
+                {
+                    string url = $"{slUrlBaseGlobal}SerialNumberDetails({absEntry})";
+                    string payload = JsonSerializer.Serialize(new { SerialNumber = serieNue });
+
+                    using (var req = new HttpRequestMessage(new HttpMethod("PATCH"), url))
+                    {
+                        req.Headers.Add("Cookie", $"B1SESSION={tokenLimpio}");
+                        req.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+                        using (HttpResponseMessage resp = await client.SendAsync(req, ct))
+                        {
+                            if (resp.IsSuccessStatusCode)
+                            {
+                                Interlocked.Increment(ref exitosos);
+                                estado = "ACTUALIZADO_OK";
+                                obs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Sincerado OK: '{serieAnt}' -> '{serieNue}'.";
+                            }
+                            else
+                            {
+                                Interlocked.Increment(ref fallidos);
+                                string err = (await resp.Content.ReadAsStringAsync(ct)).Replace("\r", " ").Replace("\n", " ").Replace(";", ",");
+                                estado = "ERROR_SL";
+                                obs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] HTTP {(int)resp.StatusCode}: {err}";
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref fallidos);
+                    estado = "ERROR_EXCEPCION";
+                    obs = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.Message.Replace(";", ",")}";
+                }
+
+                lock (dtOrigen)
+                {
+                    row["Estado_PreValidacion"] = estado;
+                    row["Observacion"] = obs;
+                }
+
+                int actual = Interlocked.Increment(ref procesados);
+                if (actual % 5 == 0 || actual == total)
+                {
+                    double vel = actual / Math.Max(cronometro.Elapsed.TotalSeconds, 0.1);
+                    TimeSpan rest = TimeSpan.FromSeconds((total - actual) / Math.Max(vel, 0.1));
+                    DateTime fin = DateTime.Now.Add(rest);
+
+                    this.BeginInvoke((MethodInvoker)delegate
+                    {
+                        pbDestino.Value = Math.Min(actual, pbDestino.Maximum);
+                        double pct = (actual * 100.0) / total;
+                        lblDestino.Text = $"Avance: {pct:0.0}% ({actual:N0}/{total:N0}) | Restante: {rest.Minutes:D2}m {rest.Seconds:D2}s (Fin ~{fin:HH:mm}) | OK: {exitosos:N0} | Err: {fallidos:N0}";
+                    });
+                }
+            });
+
+            cronometro.Stop();
+            dgvDestino.DataSource = dtOrigen;
+            dgvDestino.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+            foreach (DataGridViewRow r in dgvDestino.Rows)
+            {
+                if (r.IsNewRow) continue;
+                string est = r.Cells["Estado_PreValidacion"].Value?.ToString() ?? "";
+                if (est == "ACTUALIZADO_OK") r.DefaultCellStyle.BackColor = Color.FromArgb(180, 240, 180);
+                else if (est.StartsWith("ERROR")) r.DefaultCellStyle.BackColor = Color.FromArgb(255, 190, 190);
+            }
+            dgvDestino.ResumeLayout();
+
+            return (procesados, exitosos, fallidos, cronometro.Elapsed);
+        }
+
+        private void Importar_Excel_Serie(object sender, EventArgs e)
+        {
+
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Filter = "Archivos Excel (*.xlsx;*.xls)|*.xlsx;*.xls";
+                ofd.Title = "Seleccionar Excel de Series Físicas (Fase 9)";
+                if (ofd.ShowDialog() != DialogResult.OK) return;
+
+                try
+                {
+                    Cursor = Cursors.WaitCursor;
+
+                    // Registro obligatorio de codificación Windows-1252 para ExcelDataReader en .NET
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+                    dtFase9Series = new DataTable();
+                    dtFase9Series.Columns.Add("Nro", typeof(int));
+                    dtFase9Series.Columns.Add("Hoja_Excel", typeof(string));
+                    dtFase9Series.Columns.Add("AbsEntry", typeof(int));
+                    dtFase9Series.Columns.Add("ItemCode", typeof(string));
+                    dtFase9Series.Columns.Add("ItemName", typeof(string));
+                    dtFase9Series.Columns.Add("SysNumber", typeof(int));
+                    dtFase9Series.Columns.Add("Almacen", typeof(string));
+                    dtFase9Series.Columns.Add("Serie_Actual", typeof(string));
+                    dtFase9Series.Columns.Add("Serie_Nueva", typeof(string));
+                    dtFase9Series.Columns.Add("AbsEntry_Conflicto", typeof(int));
+                    dtFase9Series.Columns.Add("Estado_PreValidacion", typeof(string));
+                    dtFase9Series.Columns.Add("Observacion", typeof(string));
+
+                    int correlativo = 0;
+
+                    using (var stream = File.Open(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    {
+                        var ds = reader.AsDataSet(new ExcelDataSetConfiguration
+                        {
+                            ConfigureDataTable = _ => new ExcelDataTableConfiguration { UseHeaderRow = true }
+                        });
+
+                        foreach (DataTable hoja in ds.Tables)
+                        {
+                            // Detecta dinámicamente las columnas "Número de artículo" y "Número de serie"
+                            DataColumn colArt = hoja.Columns.Cast<DataColumn>()
+                                .FirstOrDefault(c => c.ColumnName.ToLower().Contains("art"));
+                            DataColumn colSer = hoja.Columns.Cast<DataColumn>()
+                                .FirstOrDefault(c => c.ColumnName.ToLower().Contains("serie"));
+
+                            if (colArt == null || colSer == null) continue;
+
+                            foreach (DataRow r in hoja.Rows)
+                            {
+                                string sku = Convert.ToString(r[colArt], System.Globalization.CultureInfo.InvariantCulture)?.Trim() ?? "";
+                                string serie = Convert.ToString(r[colSer], System.Globalization.CultureInfo.InvariantCulture)?.Trim() ?? "";
+                                if (string.IsNullOrEmpty(sku) && string.IsNullOrEmpty(serie)) continue;
+
+                                correlativo++;
+                                string serieDestino = (normalizar7CaracteresF9 && serie.Length >= 1 && serie.Length < 7)
+                                    ? serie.PadLeft(7, '0')
+                                    : serie;
+
+                                dtFase9Series.Rows.Add(
+                                    correlativo, hoja.TableName, 0, sku, "", 0, almacenSinceramientoF9,
+                                    "", serieDestino, 0, "IMPORTADO",
+                                    $"Leído de hoja '{hoja.TableName}' (Original Excel: '{serie}'). Pendiente pre-validar."
+                                );
+                            }
+                        }
+                    }
+
+                    dgv_F9.DataSource = null;
+                    dgv_F9.DataSource = dtFase9Series;
+                    dgv_F9.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+                    ultimoLogFase9 = GuardarLogAutomatico(dtFase9Series, "Logs_Fase9", "Log_F9_1_ImportacionExcel");
+                    lb1_F9.Text = $"Excel importado: {dtFase9Series.Rows.Count:N0} series cargadas para almacén {almacenSinceramientoF9}.";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al leer Excel:\n{ex.Message}", "Error Excel", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    Cursor = Cursors.Default;
+                }
+            }
+
+
+
+        }
+
+        private async void pre_validar(object sender, EventArgs e)
+        {
+
+            if (dtFase9Series == null || dtFase9Series.Rows.Count == 0)
+            {
+                MessageBox.Show("Primero importe el archivo Excel.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                lb1_F9.Text = $"Validando cuadre de stock y emparejando series en {almacenSinceramientoF9}...";
+                Application.DoEvents();
+
+                // Garantiza que exista la columna auxiliar para liberar series históricas con prefijo "L"
+                if (!dtFase9Series.Columns.Contains("AbsEntry_Conflicto"))
+                {
+                    dtFase9Series.Columns.Add("AbsEntry_Conflicto", typeof(int));
+                }
+
+                string schema = slBaseDatosGlobal;
+                var skusUnicos = dtFase9Series.AsEnumerable()
+                    .Select(r => r["ItemCode"].ToString().Trim())
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                string inSkus = string.Join(",", skusUnicos.Select(s => $"'{s.Replace("'", "''")}'"));
+
+                // 1. Consultar TODAS las series en OSRN de esos SKUs y su stock en ALM01 vs. otros almacenes
+                string sql = $@"
+            SELECT 
+                T0.""AbsEntry"",
+                T0.""ItemCode"",
+                T1.""ItemName"",
+                T0.""SysNumber"",
+                TRIM(IFNULL(T0.""DistNumber"", '')) AS ""Serie_SAP"",
+                IFNULL(Q_ALM.""Quantity"", 0) AS ""Stock_Almacen"",
+                IFNULL(Q_OTRO.""Otro_Almacen"", '') AS ""Otro_Almacen"",
+                IFNULL(Q_OTRO.""Stock_Otro"", 0) AS ""Stock_Otro_Almacen""
+            FROM ""{schema}"".""OSRN"" T0
+            INNER JOIN ""{schema}"".""OITM"" T1 ON T1.""ItemCode"" = T0.""ItemCode""
+            LEFT JOIN ""{schema}"".""OSRQ"" Q_ALM 
+                ON Q_ALM.""ItemCode"" = T0.""ItemCode"" 
+               AND Q_ALM.""SysNumber"" = T0.""SysNumber"" 
+               AND Q_ALM.""WhsCode"" = '{almacenSinceramientoF9}' 
+               AND Q_ALM.""Quantity"" > 0
+            LEFT JOIN (
+                SELECT 
+                    ""ItemCode"",
+                    ""SysNumber"",
+                    STRING_AGG(""WhsCode"", ', ') AS ""Otro_Almacen"",
+                    SUM(""Quantity"") AS ""Stock_Otro""
+                FROM ""{schema}"".""OSRQ""
+                WHERE ""WhsCode"" <> '{almacenSinceramientoF9}'
+                  AND ""Quantity"" > 0
+                GROUP BY ""ItemCode"", ""SysNumber""
+            ) Q_OTRO 
+                ON Q_OTRO.""ItemCode"" = T0.""ItemCode"" 
+               AND Q_OTRO.""SysNumber"" = T0.""SysNumber""
+            WHERE T0.""ItemCode"" IN ({inSkus})
+            ORDER BY T0.""ItemCode"", T0.""SysNumber"";";
+
+                DataTable dtSap = await Task.Run(() =>
+                {
+                    DataTable dt = new DataTable();
+                    using (OdbcConnection conn = new OdbcConnection(GetHanaConnectionString()))
+                    {
+                        conn.Open();
+                        using (OdbcCommand cmd = new OdbcCommand(sql, conn))
+                        using (OdbcDataAdapter da = new OdbcDataAdapter(cmd))
+                        {
+                            da.Fill(dt);
+                        }
+                    }
+                    return dt;
+                });
+
+                int listos = 0, listosConPrefijoL = 0, sinCambios = 0, errores = 0;
+
+                // Agrupar validación por Artículo (ItemCode)
+                foreach (string sku in skusUnicos)
+                {
+                    var filasExcelSku = dtFase9Series.AsEnumerable()
+                        .Where(r => r["ItemCode"].ToString().Trim().Equals(sku, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    var sapTodosSku = dtSap.AsEnumerable()
+                        .Where(r => r["ItemCode"].ToString().Trim().Equals(sku, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    var sapEnAlmacen = sapTodosSku
+                        .Where(r => Convert.ToDecimal(r["Stock_Almacen"]) > 0)
+                        .ToList();
+
+                    string itemName = sapTodosSku.FirstOrDefault()?["ItemName"]?.ToString() ?? "";
+                    foreach (var r in filasExcelSku)
+                    {
+                        r["ItemName"] = itemName;
+                        r["AbsEntry_Conflicto"] = 0;
+                    }
+
+                    // Validación A: Duplicados dentro del mismo Excel
+                    var duplicadosExcel = filasExcelSku
+                        .GroupBy(r => r["Serie_Nueva"].ToString().Trim(), StringComparer.OrdinalIgnoreCase)
+                        .Where(g => g.Count() > 1)
+                        .Select(g => g.Key)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    if (duplicadosExcel.Count > 0)
+                    {
+                        foreach (var r in filasExcelSku)
+                        {
+                            string s = r["Serie_Nueva"].ToString().Trim();
+                            r["Estado_PreValidacion"] = duplicadosExcel.Contains(s) ? "ERROR_DUPLICADO_EXCEL" : "BLOQUEADO_LOTE_SKU";
+                            r["Observacion"] = $"Bloqueado: El artículo {sku} tiene series repetidas en el Excel ({string.Join(", ", duplicadosExcel)}).";
+                            errores++;
+                        }
+                        continue;
+                    }
+
+                    // Validación B: Cuadre exacto de cantidad (Ej. Excel = 130 vs SAP ALM01 = 130)
+                    if (filasExcelSku.Count != sapEnAlmacen.Count)
+                    {
+                        foreach (var r in filasExcelSku)
+                        {
+                            r["Estado_PreValidacion"] = "ERROR_DESCUADRE_STOCK";
+                            r["Observacion"] = $"Bloqueado: Excel tiene {filasExcelSku.Count} series para {sku}, pero SAP en {almacenSinceramientoF9} tiene {sapEnAlmacen.Count} en stock.";
+                            errores++;
+                        }
+                        continue;
+                    }
+
+                    // Emparejamiento 1 a 1 inteligente:
+                    // Paso 1: Si la serie del Excel YA existe en ALM01, se empareja con su mismo AbsEntry (no requiere PATCH)
+                    var excelPendientes = new List<DataRow>();
+                    var sapDisponibles = new List<DataRow>(sapEnAlmacen);
+
+                    foreach (var rExcel in filasExcelSku)
+                    {
+                        string sNueva = rExcel["Serie_Nueva"].ToString().Trim();
+                        var matchExacto = sapDisponibles.FirstOrDefault(s =>
+                            s["Serie_SAP"].ToString().Trim().Equals(sNueva, StringComparison.OrdinalIgnoreCase));
+
+                        if (matchExacto != null)
+                        {
+                            rExcel["AbsEntry"] = Convert.ToInt32(matchExacto["AbsEntry"]);
+                            rExcel["SysNumber"] = Convert.ToInt32(matchExacto["SysNumber"]);
+                            rExcel["Serie_Actual"] = matchExacto["Serie_SAP"].ToString().Trim();
+                            rExcel["Estado_PreValidacion"] = "SIN_CAMBIOS_OK";
+                            rExcel["Observacion"] = $"Ya coincide en SAP ({almacenSinceramientoF9}). No requiere actualización.";
+                            sapDisponibles.Remove(matchExacto);
+                            sinCambios++;
+                        }
+                        else
+                        {
+                            excelPendientes.Add(rExcel);
+                        }
+                    }
+
+                    // Paso 2: Emparejar las series nuevas del Excel contra los AbsEntry restantes de ALM01
+                    //         y resolver conflictos históricos anteponiendo "L" si Stock = 0
+                    var registrosFueraDeAlmacen = sapTodosSku
+                        .Where(r => Convert.ToDecimal(r["Stock_Almacen"]) <= 0)
+                        .ToList();
+
+                    for (int i = 0; i < excelPendientes.Count; i++)
+                    {
+                        DataRow rExcel = excelPendientes[i];
+                        DataRow rSap = sapDisponibles[i];
+                        string sNueva = rExcel["Serie_Nueva"].ToString().Trim();
+                        string sActual = rSap["Serie_SAP"].ToString().Trim();
+
+                        rExcel["AbsEntry"] = Convert.ToInt32(rSap["AbsEntry"]);
+                        rExcel["SysNumber"] = Convert.ToInt32(rSap["SysNumber"]);
+                        rExcel["Serie_Actual"] = sActual;
+
+                        if (string.IsNullOrEmpty(sNueva))
+                        {
+                            rExcel["Estado_PreValidacion"] = "ERROR_SERIE_VACIA";
+                            rExcel["Observacion"] = "Bloqueado: La celda de serie en el Excel está vacía.";
+                            errores++;
+                            continue;
+                        }
+
+                        var conflicto = registrosFueraDeAlmacen.FirstOrDefault(r =>
+                            r["Serie_SAP"].ToString().Trim().Equals(sNueva, StringComparison.OrdinalIgnoreCase));
+
+                        if (conflicto != null)
+                        {
+                            decimal stockOtro = Convert.ToDecimal(conflicto["Stock_Otro_Almacen"]);
+                            string otroAlm = conflicto["Otro_Almacen"].ToString().Trim();
+                            string seriePrefijoL = $"L{sNueva}";
+
+                            bool existeL_EnBD = sapTodosSku.Any(r =>
+                                r["Serie_SAP"].ToString().Trim().Equals(seriePrefijoL, StringComparison.OrdinalIgnoreCase));
+
+                            bool existeL_EnExcel = filasExcelSku.Any(r =>
+                                r["Serie_Nueva"].ToString().Trim().Equals(seriePrefijoL, StringComparison.OrdinalIgnoreCase));
+
+                            if (stockOtro > 0)
+                            {
+                                rExcel["Estado_PreValidacion"] = "ERROR_EN_OTRO_ALMACEN";
+                                rExcel["Observacion"] = $"Bloqueado: La serie '{sNueva}' tiene stock activo en {otroAlm}. Verificar físicamente.";
+                                errores++;
+                            }
+                            else if (existeL_EnBD || existeL_EnExcel)
+                            {
+                                rExcel["Estado_PreValidacion"] = "ERROR_YA_EXISTE_L";
+                                rExcel["Observacion"] = $"Bloqueado: Tanto '{sNueva}' como '{seriePrefijoL}' ya existen en OSRN para {sku}.";
+                                errores++;
+                            }
+                            else
+                            {
+                                int absHist = Convert.ToInt32(conflicto["AbsEntry"]);
+                                rExcel["AbsEntry_Conflicto"] = absHist;
+                                rExcel["Estado_PreValidacion"] = "LISTO";
+                                rExcel["Observacion"] = $"Listo (Libera histórico AbsEntry {absHist}: '{sNueva}'->'{seriePrefijoL}') y sincera {almacenSinceramientoF9}: '{sActual}'->'{sNueva}'.";
+                                listos++;
+                                listosConPrefijoL++;
+                            }
+                        }
+                        else
+                        {
+                            rExcel["Estado_PreValidacion"] = "LISTO";
+                            rExcel["Observacion"] = $"Listo para sincerar en {almacenSinceramientoF9}: '{sActual}' -> '{sNueva}'.";
+                            listos++;
+                        }
+                    }
+                }
+
+                // Colorear grilla
+                dgv_F9.SuspendLayout();
+                foreach (DataGridViewRow dgvRow in dgv_F9.Rows)
+                {
+                    if (dgvRow.IsNewRow) continue;
+                    string est = dgvRow.Cells["Estado_PreValidacion"].Value?.ToString() ?? "";
+                    if (est == "LISTO") dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
+                    else if (est == "SIN_CAMBIOS_OK") dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(225, 240, 255);
+                    else dgvRow.DefaultCellStyle.BackColor = Color.FromArgb(255, 220, 220);
+                }
+                dgv_F9.ResumeLayout();
+
+                ultimoLogFase9 = GuardarLogAutomatico(dtFase9Series, "Logs_Fase9", "Log_F9_2_PreValidacion");
+                lb1_F9.Text = $"Pre-Validación ({almacenSinceramientoF9}): {listos:N0} LISTOS ({listosConPrefijoL:N0} con prefijo L) | {sinCambios:N0} Ya coinciden | {errores:N0} Errores.";
+
+                MessageBox.Show(
+                    $"PRE-VALIDACIÓN SINCERAMIENTO ({almacenSinceramientoF9})\n" +
+                    $"==============================================\n" +
+                    $"✔ LISTOS PARA MODIFICAR EN SAP: {listos:N0} (incluye {listosConPrefijoL:N0} con liberación prefijo 'L')\n" +
+                    $"ℹ YA COINCIDEN (Sin cambios): {sinCambios:N0}\n" +
+                    $"✖ BLOQUEADOS / DESCUADRADOS: {errores:N0}\n" +
+                    $"==============================================\n" +
+                    $"Log guardado en:\n{ultimoLogFase9}",
+                    "Fase 9 - Pre-Validación", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error en pre-validación:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+
+
+
+        }
+
+        private async void Modificar_Serie_F9(object sender, EventArgs e)
+        {
+
+            if (dtFase9Series == null || dtFase9Series.Select("Estado_PreValidacion = 'LISTO'").Length == 0)
+            {
+                MessageBox.Show("No hay registros en estado 'LISTO' para modificar. Ejecute primero 'pre_validar'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sessionToken))
+            {
+                MessageBox.Show("Primero presione 'Generar Token' arriba a la derecha.", "Token Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int totalListos = dtFase9Series.Select("Estado_PreValidacion = 'LISTO'").Length;
+            if (MessageBox.Show($"Se actualizarán {totalListos:N0} series en '{slBaseDatosGlobal}' (Almacén {almacenSinceramientoF9}).\n\n¿Continuar?",
+                "Confirmar Sinceramiento", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            Button btnEjecutar = sender as Button;
+
+            try
+            {
+                if (btnEjecutar != null) btnEjecutar.Enabled = false;
+                Cursor = Cursors.WaitCursor;
+
+                string tokenLimpio = sessionToken.Contains("B1SESSION=")
+                    ? sessionToken.Substring(sessionToken.IndexOf("B1SESSION=") + 10).Split(';')[0].Trim()
+                    : sessionToken.Trim();
+
+                // PASO PREVIO: Renombrar a "L" + Serie las series históricas (En_Stock = 0) que bloqueaban el código
+                DataRow[] filasConflictoL = dtFase9Series.Select("Estado_PreValidacion = 'LISTO' AND AbsEntry_Conflicto > 0");
+                if (filasConflictoL.Length > 0)
+                {
+                    lb1_F9.Text = $"Paso 1/2: Liberando {filasConflictoL.Length:N0} series históricas con prefijo 'L'...";
+                    Application.DoEvents();
+                }
+
+                foreach (DataRow row in filasConflictoL)
+                {
+                    int absHistorico = Convert.ToInt32(row["AbsEntry_Conflicto"]);
+                    string serieNueva = row["Serie_Nueva"].ToString().Trim();
+                    string seriePrefijoL = $"L{serieNueva}";
+
+                    try
+                    {
+                        string url = $"{slUrlBaseGlobal}SerialNumberDetails({absHistorico})";
+                        string payload = JsonSerializer.Serialize(new { SerialNumber = seriePrefijoL });
+
+                        using (var req = new HttpRequestMessage(new HttpMethod("PATCH"), url))
+                        {
+                            req.Headers.Add("Cookie", $"B1SESSION={tokenLimpio}");
+                            req.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+                            using (HttpResponseMessage resp = await client.SendAsync(req))
+                            {
+                                if (!resp.IsSuccessStatusCode)
+                                {
+                                    string err = (await resp.Content.ReadAsStringAsync()).Replace("\r", " ").Replace("\n", " ").Replace(";", ",");
+                                    row["Estado_PreValidacion"] = "ERROR_LIBERACION_L";
+                                    row["Observacion"] = $"No se pudo renombrar histórico AbsEntry {absHistorico} a '{seriePrefijoL}': {err}";
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        string msgEx = ex.Message.Replace("\r", " ").Replace("\n", " ").Replace(";", ",");
+                        row["Estado_PreValidacion"] = "ERROR_LIBERACION_L";
+                        row["Observacion"] = $"Excepción al liberar '{seriePrefijoL}': {msgEx}";
+                    }
+                }
+
+                // PASO 2: Sinceramiento masivo en paralelo (10 hilos) sobre los registros 'LISTO'
+                var res = await EjecutarPatchMasivoSeriesAsync(dtFase9Series, dgv_F9, progressBar9, lb1_F9, 10);
+                ultimoLogFase9 = GuardarLogAutomatico(dtFase9Series, "Logs_Fase9", "Log_F9_3_SinceramientoFinal");
+
+                MessageBox.Show(
+                    $"Sinceramiento finalizado en {res.duracion.Minutes:D2}m {res.duracion.Seconds:D2}s.\n\n" +
+                    $"• Procesados: {res.procesados:N0}\n• Exitosos: {res.exitosos:N0}\n• Fallidos: {res.fallidos:N0}\n\n" +
+                    $"Log guardado en:\n{ultimoLogFase9}",
+                    "Fase 9 Completada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            finally
+            {
+                if (btnEjecutar != null) btnEjecutar.Enabled = true;
+                Cursor = Cursors.Default;
+            }
+
+
+        }
+
+
+
+
+
+
     }
 }
